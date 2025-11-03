@@ -1,0 +1,58 @@
+# LLM Collaboration – Writing
+
+Training scripts and configs for the writing tasks in _"LLM Collaboration with Multi‑Agent Reinforcement Learning"_.
+
+## Benchmarks
+
+- ArXiv Abstract Expansion: `LovelyBuggies/arXiv_abstract` (train[:1000], val[:1000])
+- TLDR Summarization: `trl-lib/tldr` (train[:1000], test[:1000])
+
+## Training Scripts
+
+```bash
+python LLM_Collab_Writing/train_grpo.py \
+  --config LLM_Collab_Writing/configs/grpo_arxiv_config.yaml
+
+python LLM_Collab_Writing/train_magrpo.py \
+  --config LLM_Collab_Writing/configs/magrpo_tldr_config.yaml
+```
+
+Override any configuration value inline with `--override`:
+
+```bash
+python LLM_Collab_Writing/train_magrpo.py \
+  --config LLM_Collab_Writing/configs/magrpo_arxiv_config.yaml \
+  --override model.name='Qwen/Qwen3-7B' magrpo.learning_rate=3e-6
+```
+
+## Settings
+
+### Single Turn
+
+Writing runs are strictly single-turn. Both training entrypoints enforce `num_turns=1`; configs that specify other values will raise an error.
+
+### Formatters
+
+- **ArXiv**: Agent 1 writes background/motivation; Agent 2 writes methodology/implications.
+- **TLDR**: Agent 1 produces a concise summary; Agent 2 expands with additional details and vocabulary diversity.
+- **GRPO mode**: A single agent emits both paragraphs separated by `[PARAGRAPH_SPLIT]`, which the reward splits internally.
+
+### Reward Structure
+
+Rewards reuse the level-based metrics from the paper:
+
+1. Structural token limits.
+2. Relative length coordination.
+3. Vocabulary diversity (unique word ratios).
+4. Style mix (transition-word coverage + Jaccard overlap).
+
+The same functions back evaluation loggers for the baselines.
+
+### Logging
+
+Evaluation wrappers adapt the original logging utilities to the unified `MAGRPOTrainer` API, yielding aggregated metrics such as token ratios, transition coverage, and gated vs. ungated rewards. Weights & Biases configs mirror the code-generation project; set `wandb.project`, `wandb.entity`, and `wandb.name` in YAML or via overrides.
+
+## Baselines
+
+`baselines/` contains the zero-shot evaluation scripts (single agent, sequential, concat, discuss) for both datasets. Each script loads Qwen models and reports the same reward metrics as training.
+

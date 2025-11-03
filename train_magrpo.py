@@ -1,0 +1,393 @@
+"""
+MAGRPO training entrypoint for collaborative writing tasks (arXiv abstracts and TLDR).
+
+This script mirrors the layout of the code-generation project but specializes the
+formatters, rewards, and evaluation logging for writing-focused datasets.
+"""
+
+import argparse
+import os
+from typing import Any, Callable, Dict, List, Optional
+
+from config import Config, add_config_args, parse_overrides
+from datasets import load_dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+from loggers.arxiv_logger import (
+    aggregate_arxiv_metrics_for_logging,
+    arxiv_combined_reward_logger,
+)
+from loggers.tldr_logger import (
+    aggregate_tldr_metrics_for_logging,
+    tldr_combined_reward_logger,
+)
+from rewards.arxiv_rewards import arxiv_combined_reward
+from rewards.tldr_rewards import tldr_combined_reward
+from comlrl.utils.reward_processor import RewardProcessors
+from comlrl.trainers.magrpo import MAGRPOConfig, MAGRPOTrainer
+
+
+# -----------------------------------------------------------------------------
+# Prompt formatters
+# -----------------------------------------------------------------------------
+
+def background_agent_formatter(example: Dict[str, Any]) -> str:
+    """Formatter for the background agent (Agent 1) for the arXiv dataset."""
+    abstract = example.get("abstract_text", "")
+
+    if not abstract:
+        return "Error: No abstract provided."
+
+    prompt_text = f"""Based on the following scientific abstract, expand content for an introduction section.
+
+Abstract:
+{abstract}
+
+IMPORTANT INSTRUCTIONS:
+- There is another agent that will provide methodology and implications
+- You just need to focus on background and motivation
+- Avoid repeating methodology and implications content
+"""
+
+    return prompt_text
+
+
+def complementary_agent_formatter(example: Dict[str, Any]) -> str:
+    """Formatter for the complementary agent (Agent 2) for the arXiv dataset."""
+    abstract = example.get("abstract_text", "")
+
+    if not abstract:
+        return "Error: No abstract provided."
+
+    prompt_text = f"""Based on the following scientific abstract, expand content for an introduction section.
+
+Abstract:
+{abstract}
+
+IMPORTANT INSTRUCTIONS:
+- There is another agent that will provide the background and motivation
+- You just need to focus on methodology and implications
+- Avoid repeating background and motivation content
+"""
+
+    return prompt_text
+
+
+def summary_agent_formatter(example: Dict[str, Any]) -> str:
+    """Formatter for the summary agent (Agent 1) for the TLDR dataset."""
+    prompt = example.get("prompt", "")
+
+    if not prompt:
+        return "Error: No prompt provided."
+
+    prompt_text = f"""Create a concise summary response to this post.
+
+Query:
+{prompt}
+
+IMPORTANT INSTRUCTIONS:
+- Provide a brief, focused summary in one sentence or a few sentences
+- Be factual and informative
+"""
+
+    return prompt_text
+
+
+def elaboration_agent_formatter(example: Dict[str, Any]) -> str:
+    """Formatter for the elaboration agent (Agent 2) for the TLDR dataset."""
+    prompt = example.get("prompt", "")
+
+    if not prompt:
+        return "Error: No prompt provided."
+
+    prompt_text = f"""Create a detailed summary response to this post.
+
+Original Query:
+{prompt}
+
+IMPORTANT INSTRUCTIONS:
+- Use more unique words
+- Use some transition words to improve flow
+"""
+
+    return prompt_text
+
+
+def get_formatters(dataset_type: str) -> List[Callable[[Dict[str, Any]], str]]:
+    """Return per-agent formatter functions for the selected dataset."""
+    if dataset_type is None:
+        raise ValueError(
+            "dataset.type not specified in config. Please add 'type: arxiv/tldr' to the dataset section."
+        )
+
+    formatters_map = {
+        "arxiv": [background_agent_formatter, complementary_agent_formatter],
+        "tldr": [summary_agent_formatter, elaboration_agent_formatter],
+    }
+
+    dataset_key = dataset_type.lower()
+    if dataset_key not in formatters_map:
+        raise ValueError(f"Unsupported dataset type '{dataset_type}' for writing tasks.")
+
+    return formatters_map[dataset_key]
+
+
+# -----------------------------------------------------------------------------
+# Evaluation helpers
+# -----------------------------------------------------------------------------
+
+def _adapt_eval_logger(
+    base_logger: Callable[[List[str], List[str]], List[Dict[str, Any]]]
+) -> Callable[..., List[Dict[str, Any]]]:
+    """Wrap legacy two-agent loggers to the new MAGRPO interface."""
+
+    def logger(*, agent_completions_turns, **_: Any) -> List[Dict[str, Any]]:
+        if not agent_completions_turns or len(agent_completions_turns) < 2:
+            return []
+
+        num_samples = len(agent_completions_turns[0])
+        completions1: List[str] = []
+        completions2: List[str] = []
+
+        for idx in range(num_samples):
+            turns_agent1 = agent_completions_turns[0][idx]
+            turns_agent2 = agent_completions_turns[1][idx]
+
+            completion1 = turns_agent1[-1] if turns_agent1 else ""
+            completion2 = turns_agent2[-1] if turns_agent2 else ""
+
+            completions1.append(completion1)
+            completions2.append(completion2)
+
+        return base_logger(completions1, completions2)
+
+    return logger
+
+
+def _adapt_eval_aggregator(
+    base_aggregator: Callable[[List[Dict[str, Any]]], Dict[str, float]]
+) -> Callable[..., Dict[str, float]]:
+    """Wrap aggregators so they match the MAGRPO signature (accepting num_turns)."""
+
+    def aggregator(metrics: List[Dict[str, Any]], num_turns: int = 1) -> Dict[str, float]:
+        # num_turns unused for single-turn writing tasks
+        return base_aggregator(metrics)
+
+    return aggregator
+
+
+def get_eval_logging(dataset_type: str) -> Dict[str, Callable]:
+    """Return evaluation logger/aggregator wrappers when available."""
+    dataset_key = dataset_type.lower()
+    if dataset_key == "arxiv":
+        return {
+            "eval_logger": _adapt_eval_logger(arxiv_combined_reward_logger),
+            "eval_aggregator": _adapt_eval_aggregator(
+                aggregate_arxiv_metrics_for_logging
+            ),
+        }
+    if dataset_key == "tldr":
+        return {
+            "eval_logger": _adapt_eval_logger(tldr_combined_reward_logger),
+            "eval_aggregator": _adapt_eval_aggregator(
+                aggregate_tldr_metrics_for_logging
+            ),
+        }
+    return {}
+
+
+def make_reward_function(
+    dataset_type: str,
+) -> Callable[..., List[float]]:
+    """Create a MAGRPO-compatible reward function for the dataset."""
+    dataset_key = dataset_type.lower()
+
+    if dataset_key == "arxiv":
+        base_reward = arxiv_combined_reward
+    elif dataset_key == "tldr":
+        base_reward = tldr_combined_reward
+    else:
+        raise ValueError(f"Unsupported dataset type '{dataset_type}'.")
+
+    def reward_fn(*agent_completions, batch_items=None, prompts=None):
+        if len(agent_completions) < 2:
+            raise ValueError(
+                "Writing tasks expect two agent completions for reward calculation."
+            )
+
+        completions1 = agent_completions[0]
+        completions2 = agent_completions[1]
+        return base_reward(completions1, completions2)
+
+    return reward_fn
+
+
+def infer_dataset_type(dataset_name: str, explicit_type: Optional[str]) -> str:
+    """Infer dataset type from name when not explicitly provided."""
+    if explicit_type:
+        return explicit_type.lower()
+
+    name = dataset_name.lower()
+    if "arxiv" in name:
+        return "arxiv"
+    if "tldr" in name:
+        return "tldr"
+
+    raise ValueError(
+        f"Could not infer dataset type from dataset name '{dataset_name}'. "
+        "Please specify dataset.type in the config (arxiv or tldr)."
+    )
+
+
+def main():
+    """Configure and launch MAGRPO training for writing datasets."""
+    parser = argparse.ArgumentParser(
+        description="Train MAGRPO for collaborative writing tasks."
+    )
+    add_config_args(parser)
+    args = parser.parse_args()
+
+    if not args.config:
+        raise ValueError("Please provide a configuration file via --config.")
+
+    config = Config(args.config)
+    if args.override:
+        overrides = parse_overrides(args.override)
+        config.update(overrides)
+
+    # ------------------------------------------------------------------
+    # Model and tokenizer setup
+    # ------------------------------------------------------------------
+    model_config = config.get_model_config()
+    model_name = model_config.name
+
+    dataset_name = config.get("dataset.name")
+    dataset_type = infer_dataset_type(dataset_name, config.get("dataset.type"))
+
+    output_base_dir = config.get("output.base_dir", "./output")
+    slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
+    output_dir = os.path.join(output_base_dir, f"job_{slurm_job_id}")
+    os.makedirs(output_dir, exist_ok=True)
+
+    train_split = config.get("dataset.train_split")
+    eval_split = config.get("dataset.eval_split")
+
+    # Load datasets (leave errors to bubble up for clarity)
+    train_dataset = load_dataset(dataset_name, split=train_split)
+    eval_dataset = load_dataset(dataset_name, split=eval_split)
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_name, **model_config.tokenizer_kwargs
+    )
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    padding_side = config.get("tokenizer.padding_side")
+    if padding_side:
+        tokenizer.padding_side = padding_side
+
+    if model_config.special_tokens:
+        tokenizer.add_special_tokens(model_config.special_tokens)
+
+    agents_config = config.get_section("agents")
+    num_agents = agents_config.get("num_agents", 2)
+    if num_agents != 2:
+        raise ValueError(
+            f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
+        )
+
+    agents = [
+        AutoModelForCausalLM.from_pretrained(
+            model_name,
+            **model_config.model_kwargs,
+        )
+        for _ in range(num_agents)
+    ]
+
+    # ------------------------------------------------------------------
+    # Training configuration
+    # ------------------------------------------------------------------
+    magrpo_cfg = config.get_section("magrpo")
+    num_turns_cfg = magrpo_cfg.get("num_turns")
+    if num_turns_cfg is not None and int(num_turns_cfg) != 1:
+        raise ValueError(
+            "Writing collaboration experiments are single-turn. "
+            "Please set magrpo.num_turns=1 (or remove the field) in the config."
+        )
+
+    temperature = magrpo_cfg.get("temperature", model_config.temperature)
+    top_p = magrpo_cfg.get("top_p", model_config.top_p)
+
+    magrpo_args = MAGRPOConfig(
+        output_dir=output_dir,
+        num_agents=num_agents,
+        num_train_epochs=magrpo_cfg.get("num_train_epochs", 1),
+        per_device_train_batch_size=magrpo_cfg.get(
+            "per_device_train_batch_size", 1
+        ),
+        learning_rate=magrpo_cfg.get("learning_rate", 5e-6),
+        logging_steps=magrpo_cfg.get("logging_steps", 10),
+        save_steps=magrpo_cfg.get("save_steps", 100),
+        num_generations=magrpo_cfg.get("num_generations", 4),
+        max_new_tokens=magrpo_cfg.get("max_new_tokens", 256),
+        temperature=temperature,
+        top_p=top_p,
+        evaluation_strategy="steps",
+        eval_steps=magrpo_cfg.get("eval_steps", 100),
+        num_turns=1,
+    )
+
+    formatters = get_formatters(dataset_type)
+    reward_func = make_reward_function(dataset_type)
+
+    wandb_section = config.get_section("wandb")
+    model_short_name = model_name.split("/")[-1].lower()
+    wandb_name = wandb_section.get("name", f"magrpo_{dataset_type}")
+    wandb_config = {
+        "project": wandb_section.get("project", "mlrl"),
+        "entity": wandb_section.get("entity", "nu-llpr"),
+        "name": f"{wandb_name}_{model_short_name}",
+        "dir": wandb_section.get("dir", "./wandb"),
+        "tags": wandb_section.get("tags", ["magrpo", dataset_type]),
+    }
+
+    logging_wrappers = get_eval_logging(dataset_type)
+
+    reward_processor = None
+    if config.get("reward_processor.enabled", False):
+        scale_factor = config.get("reward_processor.scale_factor", 1)
+        reward_processor = RewardProcessors.scale(factor=scale_factor)
+
+    trainer_kwargs: Dict[str, Any] = {
+        "agents": agents,
+        "num_agents": num_agents,
+        "reward_func": reward_func,
+        "formatters": formatters,
+        "args": magrpo_args,
+        "train_dataset": train_dataset,
+        "eval_dataset": eval_dataset,
+        "tokenizer": tokenizer,
+        "wandb_config": wandb_config,
+        "dataset_type": dataset_type,
+    }
+    trainer_kwargs.update(logging_wrappers)
+
+    if reward_processor is not None:
+        trainer_kwargs["reward_processor"] = reward_processor
+
+    trainer = MAGRPOTrainer(**trainer_kwargs)
+    trainer.train()
+
+    if config.get("output.save_final_model", True):
+        save_path = config.get("output.save_path", os.path.join(output_dir, "final_model"))
+        trainer.save_model(save_path)
+        print(f"Model saved to: {save_path}")
+
+    if hasattr(config, "save"):
+        config_save_path = os.path.join(output_dir, "config.yaml")
+        config.save(config_save_path)
+        print(f"Configuration saved to: {config_save_path}")
+
+
+if __name__ == "__main__":
+    main()
