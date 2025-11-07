@@ -345,7 +345,7 @@ def main():
     wandb_name = wandb_section.get("name", f"magrpo_{dataset_type}")
     wandb_config = {
         "project": wandb_section.get("project", "mlrl"),
-        "entity": wandb_section.get("entity", "nu-llpr"),
+        "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": f"{wandb_name}_{model_short_name}",
         "dir": wandb_section.get("dir", "./wandb"),
         "tags": wandb_section.get("tags", ["magrpo", dataset_type]),

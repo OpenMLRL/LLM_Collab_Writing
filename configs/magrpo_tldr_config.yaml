@@ -54,6 +54,6 @@ reward_processor:
 # Wandb configuration
 wandb:
   project: "mlrl"
-  entity: "nu-llpr"
+  entity: "OpenMLRL"
   name: "magrpo_tldr"  # Will be appended with model name in script
   tags: ["magrpo", "tldr", "multi-agent"]

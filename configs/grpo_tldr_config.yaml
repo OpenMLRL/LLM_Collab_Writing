@@ -49,6 +49,6 @@ reward_processor:
 # Wandb configuration
 wandb:
   project: "mlrl"
-  entity: "nu-llpr"
+  entity: "OpenMLRL"
   name: "grpo_tldr"
   tags: ["grpo", "tldr", "single-agent"]
