@@ -2,6 +2,8 @@
 
 Training scripts and configs for the writing tasks in _"LLM Collaboration with Multi‑Agent Reinforcement Learning"_.
 
+<img src="./demo_aw.gif" alt="Writing demo" width="600px">
+
 ## Benchmarks
 
 - ArXiv Abstract Expansion: `LovelyBuggies/arXiv_abstract` (train[:1000], val[:1000])
