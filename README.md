@@ -1,10 +1,19 @@
 # LLM Collaboration – Writing
 
-This repository contains the writing-task experiments that extend the CoMLRL project (https://github.com/OpenMLRL/CoMLRL) presented in [_"LLM Collaboration with Multi‑Agent Reinforcement Learning"_](https://arxiv.org/abs/2508.04652).
+This repo provides the extended environments for [**CoMLRL**](https://github.com/OpenMLRL/CoMLRL).
 
-Training scripts and configs for the writing tasks in [_"LLM Collaboration with Multi‑Agent Reinforcement Learning"_](https://arxiv.org/abs/2508.04652).
+This repository contains the writing-task experiments in [**[AAAI26]** **_LLM Collaboration with Multi‑Agent Reinforcement Learning_**](https://arxiv.org/abs/2508.04652). 
 
 <img src="./demo_aw.gif" alt="Writing demo" width="600px">
+
+## Installation
+
+You can install [CoMLRL](https://github.com/OpenMLRL/CoMLRL) via pip or conda-forge:
+
+```bash
+pip install comlrl
+conda install -c conda-forge comlrl
+```
 
 ## Benchmarks
 
