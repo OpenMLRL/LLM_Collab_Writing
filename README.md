@@ -8,11 +8,18 @@ This repository contains the writing-task experiments in [**[AAAI26]** **_LLM Co
 
 ## Installation
 
-You can install [CoMLRL](https://github.com/OpenMLRL/CoMLRL) via pip or conda-forge:
+Install [CoMLRL](https://github.com/OpenMLRL/CoMLRL):
 
 ```bash
 pip install comlrl
+# Install PyTorch compatible with your device
+```
+
+Or via conda-forge:
+
+```bash
 conda install -c conda-forge comlrl
+# Install PyTorch compatible with your device
 ```
 
 ## Benchmarks
