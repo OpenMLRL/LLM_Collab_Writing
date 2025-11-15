@@ -1,6 +1,8 @@
 # LLM Collaboration – Writing
 
-Training scripts and configs for the writing tasks in _"LLM Collaboration with Multi‑Agent Reinforcement Learning"_.
+This repository contains the writing-task experiments that extend the CoMLRL project (https://github.com/OpenMLRL/CoMLRL) presented in [_"LLM Collaboration with Multi‑Agent Reinforcement Learning"_](https://arxiv.org/abs/2508.04652).
+
+Training scripts and configs for the writing tasks in [_"LLM Collaboration with Multi‑Agent Reinforcement Learning"_](https://arxiv.org/abs/2508.04652).
 
 <img src="./demo_aw.gif" alt="Writing demo" width="600px">
 
