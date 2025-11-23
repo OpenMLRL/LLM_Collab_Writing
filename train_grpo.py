@@ -228,7 +228,7 @@ def main():
         max_new_tokens=grpo_cfg.get("max_new_tokens", 512),
         temperature=temperature,
         top_p=top_p,
-        evaluation_strategy="steps",
+        eval_strategy="steps",
         eval_steps=grpo_cfg.get("eval_steps", 100),
         num_turns=1,
     )
