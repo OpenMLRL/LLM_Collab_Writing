@@ -40,7 +40,7 @@ magrpo:
   learning_rate: 5.0e-6  # Exact value from train_tldr.py
   logging_steps: 50  # Exact value from train_tldr.py
   save_steps: 100  # Exact value from train_tldr.py
-  eval_interval: 40
+  eval_interval: 20
   eval_num_samples: 4
   num_generations: 4
   max_new_tokens: 256
