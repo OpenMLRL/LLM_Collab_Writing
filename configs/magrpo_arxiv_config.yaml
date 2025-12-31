@@ -16,7 +16,7 @@ model:
 
 # Dataset configuration
 dataset:
-  name: "LovelyBuggies/arXiv_abstract"
+  name: "OpenMLRL/arXiv_abstract"
   type: "arxiv"  # Used to select formatters and reward function
   train_split: "train[:1000]"
   eval_split: "val[:1000]"
