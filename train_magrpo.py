@@ -343,7 +343,10 @@ def main():
 
     wandb_section = config.get_section("wandb")
     model_short_name = model_name.split("/")[-1].lower()
-    wandb_name = wandb_section.get("name", f"magrpo_{dataset_type}")
+    if "name" in wandb_section:
+        wandb_name = wandb_section["name"]
+    else:
+        wandb_name = f"magrpo_{dataset_type}_{model_short_name}"
 
     output_section = dict(config.get_section("output") or {})
     if "verbose" not in output_section:
@@ -353,7 +356,7 @@ def main():
     wandb_config = {
         "project": wandb_section.get("project", "mlrl"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
-        "name": f"{wandb_name}_{model_short_name}",
+        "name": wandb_name,
         "dir": wandb_section.get("dir", "./wandb"),
         "tags": wandb_section.get("tags", ["magrpo", dataset_type]),
         "config_sections": {
