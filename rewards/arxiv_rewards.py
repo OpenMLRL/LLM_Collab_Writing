@@ -260,13 +260,13 @@ def arxiv_combined_reward(completions1, completions2):
 
         length_ratio = len2 / len1
         print(f"📊 Length ratio (C2/C1): {length_ratio:.2f}")
-        print(f"🎯 Optimal range: 1.0-1.3x (LENIENT)")
-        print(f"📈 Acceptable range: 0.8-1.5x (LENIENT)")
+        print(f"🎯 Optimal range: 1.3-1.6x (LENIENT)")
+        print(f"📈 Acceptable range: 0.8-1.3x or 1.6-2.0x (LENIENT)")
 
         level2_reward = 0.0
         proceed_to_level3 = False
 
-        if 1.0 <= length_ratio <= 1.3:
+        if 1.3 <= length_ratio <= 1.6:
             # Perfect range - maximum Level 2 reward (LENIENT)
             level2_reward = 1.0
             reward += level2_reward
@@ -274,17 +274,17 @@ def arxiv_combined_reward(completions1, completions2):
             print(f"✅ Perfect length ratio: +{level2_reward} (total: {reward})")
             print("🎉 OPTIMAL COORDINATION ACHIEVED!")
             print("➡️  Proceeding to Level 3")
-        elif 0.8 <= length_ratio < 1.0:
-            # Linear interpolation from 0 to 1 between 0.8 and 1.0 (LENIENT)
-            level2_reward = (length_ratio - 0.8) / (1.0 - 0.8)
+        elif 0.8 <= length_ratio < 1.3:
+            # Linear interpolation from 0 to 1 between 0.8 and 1.3 (LENIENT)
+            level2_reward = (length_ratio - 0.8) / (1.3 - 0.8)
             reward += level2_reward
             proceed_to_level3 = True
             print(f"⚠️  Below optimal ratio: +{level2_reward:.2f} (total: {reward})")
             print("💡 Consider making completion2 longer for better coordination")
             print("➡️  Proceeding to Level 3")
-        elif 1.3 < length_ratio <= 1.5:
-            # Linear interpolation from 1 to 0 between 1.3 and 1.5 (LENIENT)
-            level2_reward = 1.0 - ((length_ratio - 1.3) / (1.5 - 1.3))
+        elif 1.6 < length_ratio <= 2.0:
+            # Linear interpolation from 1 to 0 between 1.6 and 2.0 (LENIENT)
+            level2_reward = 1.0 - ((length_ratio - 1.6) / (2.0 - 1.6))
             reward += level2_reward
             proceed_to_level3 = True
             print(f"⚠️  Above optimal ratio: +{level2_reward:.2f} (total: {reward})")
@@ -296,7 +296,7 @@ def arxiv_combined_reward(completions1, completions2):
             proceed_to_level3 = False
             print(f"❌ Length ratio out of acceptable range: {length_ratio:.2f}")
             print("⚠️  No Level 2 reward awarded")
-            print("💡 Ratio should be between 0.8-1.5x for any reward (LENIENT)")
+            print("💡 Ratio should be between 0.8-2.0x for any reward (LENIENT)")
             print("⏹️  STOPPING: Coordination requirements not met")
 
         if not proceed_to_level3:
