@@ -41,7 +41,7 @@ maac:
   top_k: null
   num_agents: 2
   critic_model: null
-  eval_interval: 20
+  eval_interval: 80
   eval_num_samples: 4
 
 reward_processor:
