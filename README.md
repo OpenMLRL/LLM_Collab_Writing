@@ -24,7 +24,7 @@ conda install -c conda-forge comlrl
 
 ## Benchmarks
 
-- ArXiv Abstract Expansion: `LovelyBuggies/arXiv_abstract` (train[:1000], val[:1000])
+- ArXiv Abstract Expansion: `OpenMLRL/arXiv_abstract` (train[:1000], val[:1000])
 - TLDR Summarization: `trl-lib/tldr` (train[:1000], test[:1000])
 
 ## Training Scripts

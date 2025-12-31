@@ -1,4 +1,4 @@
-# Configuration for ArXiv single-agent training with GRPO
+# Configuration for TLDR collaborative writing with IAC
 
 # Model configuration
 model:
@@ -15,10 +15,10 @@ model:
 
 # Dataset configuration
 dataset:
-  name: "OpenMLRL/arXiv_abstract"
-  type: "arxiv"  # Used to select formatters and reward function
+  name: "trl-lib/tldr"
+  type: "tldr"
   train_split: "train[:1000]"
-  eval_split: "val[:1000]"
+  eval_split: "test[:1000]"
 
 # Tokenizer configuration
 tokenizer:
@@ -29,20 +29,25 @@ output:
   base_dir: "./magrpo_output"
   verbose: false
   save_final_model: true
-  save_path: "./magrpo_output/arxiv_single"
+  save_path: "./magrpo_output/iac_tldr"
 
-# GRPO training configuration
-grpo:
-  num_train_epochs: 1
+# IAC training configuration
+iac:
+  num_turns: 1
+  num_train_epochs: 4
   per_device_train_batch_size: 1
-  learning_rate: 5.0e-6
-  logging_steps: 10
-  save_steps: 100
-  eval_interval: 4
+  actor_learning_rate: 5.0e-6
+  critic_learning_rate: 5.0e-6
+  value_loss_coef: 0.6
+  rollout_buffer_size: 4
+  max_new_tokens: 256
+  temperature: 0.7
+  top_p: 0.9
+  top_k: null
+  num_agents: 2
+  critic_model: null
+  eval_interval: 20
   eval_num_samples: 4
-  num_generations: 4
-  max_new_tokens: 512
-  # temperature and top_p will use model defaults
 
 # Reward processor configuration
 reward_processor:
@@ -53,5 +58,5 @@ reward_processor:
 wandb:
   project: "comlrl"
   entity: "OpenMLRL"
-  name: "grpo_arxiv"
-  tags: ["grpo", "arxiv", "single-agent"]
+  name: "iac_tldr"
+  tags: ["iac", "tldr", "multi-agent"]

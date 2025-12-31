@@ -35,7 +35,7 @@ I processed the raw data for the text expansion task with [extract_arXiv_abstrac
 }
 ```
 
-The processed dataset is now available on Huggingface [LovelyBuggies/arXiv_abstract](https://huggingface.co/datasets/LovelyBuggies/arXiv_abstract).
+The processed dataset is now available on Huggingface [OpenMLRL/arXiv_abstract](https://huggingface.co/datasets/OpenMLRL/arXiv_abstract).
 
 
 ## CoopHumanEval
