@@ -239,12 +239,24 @@ def main():
     wandb_section = config.get_section("wandb")
     model_short_name = model_name.split("/")[-1].lower()
     wandb_name = wandb_section.get("name", f"grpo_{dataset_type}")
+
+    output_section = dict(config.get_section("output") or {})
+    if "verbose" not in output_section:
+        output_section["verbose"] = False
+        config.update({"output": {"verbose": False}})
+
     wandb_config = {
         "project": wandb_section.get("project", "mlrl"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": f"{wandb_name}_{model_short_name}",
         "dir": wandb_section.get("dir", "./wandb"),
         "tags": wandb_section.get("tags", ["grpo", dataset_type, "single-agent"]),
+        "config_sections": {
+            "dataset": config.get_section("dataset"),
+            "model": config.get_section("model"),
+            "output": output_section,
+            "trainer": grpo_cfg,
+        },
     }
 
     reward_processor = None
