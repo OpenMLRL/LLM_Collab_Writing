@@ -1,6 +1,4 @@
-# Configuration for TLDR collaborative writing with MAAC
 
-# Model configuration
 model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
@@ -13,29 +11,25 @@ model:
     trust_remote_code: true
     torch_dtype: "auto"
 
-# Dataset configuration
 dataset:
   name: "trl-lib/tldr"
   type: "tldr"
-  train_split: "train[:1000]"
-  eval_split: "test[:1000]"
+  train_split: "train[:1100]"
+  eval_split: "test[:1100]"
 
-# Tokenizer configuration
 tokenizer:
   padding_side: "left"
 
-# Output configuration
 output:
   base_dir: "./magrpo_output"
   verbose: false
   save_final_model: true
   save_path: "./magrpo_output/maac_tldr"
 
-# MAAC training configuration
 maac:
   num_turns: 1
   critic_type: "v"
-  num_train_epochs: 4
+  num_train_epochs: 20
   per_device_train_batch_size: 1
   actor_learning_rate: 5.0e-6
   critic_learning_rate: 5.0e-6
@@ -50,12 +44,10 @@ maac:
   eval_interval: 20
   eval_num_samples: 4
 
-# Reward processor configuration
 reward_processor:
   enabled: true
   scale_factor: 1
 
-# Wandb configuration
 wandb:
   project: "comlrl"
   entity: "OpenMLRL"

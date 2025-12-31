@@ -1,6 +1,4 @@
-# Configuration for TLDR single-agent AC training
 
-# Model configuration
 model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
@@ -13,25 +11,21 @@ model:
     trust_remote_code: true
     torch_dtype: "auto"
 
-# Dataset configuration
 dataset:
   name: "trl-lib/tldr"
   type: "tldr"
   train_split: "train[:1000]"
   eval_split: "test[:1000]"
 
-# Tokenizer configuration
 tokenizer:
   padding_side: "left"
 
-# Output configuration
 output:
   base_dir: "./magrpo_output"
   verbose: false
   save_final_model: true
   save_path: "./magrpo_output/ac_tldr"
 
-# AC training configuration
 ac:
   num_turns: 1
   num_train_epochs: 4
@@ -49,12 +43,10 @@ ac:
   eval_interval: 20
   eval_num_samples: 4
 
-# Reward processor configuration
 reward_processor:
   enabled: true
   scale_factor: 1
 
-# Wandb configuration
 wandb:
   project: "comlrl"
   entity: "OpenMLRL"
