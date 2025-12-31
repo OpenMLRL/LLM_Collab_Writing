@@ -38,7 +38,7 @@ magrpo:
   per_device_train_batch_size: 1
   rollout_buffer_size: 4
   learning_rate: 5.0e-6  # Exact value from train_tldr.py
-  logging_steps: 50  # Exact value from train_tldr.py
+  logging_steps: 100  # Exact value from train_tldr.py
   save_steps: 100  # Exact value from train_tldr.py
   eval_interval: 20
   eval_num_samples: 4
