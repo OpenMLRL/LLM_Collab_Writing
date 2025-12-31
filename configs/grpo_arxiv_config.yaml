@@ -48,7 +48,7 @@ reward_processor:
 
 # Wandb configuration
 wandb:
-  project: "mlrl"
+  project: "comlrl"
   entity: "OpenMLRL"
   name: "grpo_arxiv"
   tags: ["grpo", "arxiv", "single-agent"]
