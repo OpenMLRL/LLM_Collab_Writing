@@ -332,6 +332,7 @@ def main():
         max_new_tokens=magrpo_cfg.get("max_new_tokens", 256),
         temperature=temperature,
         top_p=top_p,
+        rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 2),
         eval_strategy="steps",
         eval_steps=magrpo_cfg.get("eval_steps", 100),
         num_turns=1,
