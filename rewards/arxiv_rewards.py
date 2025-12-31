@@ -1,3 +1,6 @@
+VERBOSE = True
+
+
 def arxiv_combined_reward(completions1, completions2):
     """Level-based reward function for arXiv abstract expansion coordination.
 
@@ -29,7 +32,14 @@ def arxiv_combined_reward(completions1, completions2):
 
     Maximum reward: 3.0 (0.5 structural + 1.0 coordination + 0.5 vocabulary + 1.0 style)
     """
+    import builtins
     import re
+
+    if not VERBOSE:
+        def print(*args, **kwargs):  # type: ignore
+            return None
+    else:
+        print = builtins.print  # type: ignore
 
     # fmt: off
     STOPWORDS = {

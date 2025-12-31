@@ -177,6 +177,7 @@ def main():
     dataset_type = infer_dataset_type(dataset_name, config.get("dataset.type"))
 
     output_base_dir = config.get("output.base_dir", "./output")
+    output_verbose = bool(config.get("output.verbose", False))
     slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
     output_dir = os.path.join(output_base_dir, f"job_{slurm_job_id}")
     os.makedirs(output_dir, exist_ok=True)
@@ -228,10 +229,22 @@ def main():
         max_new_tokens=grpo_cfg.get("max_new_tokens", 512),
         temperature=temperature,
         top_p=top_p,
-        eval_strategy="steps",
-        eval_steps=grpo_cfg.get("eval_steps", 100),
+        eval_interval=grpo_cfg.get("eval_interval", 4),
+        eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
         num_turns=1,
     )
+
+    # Propagate verbosity to reward modules
+    try:
+        import rewards.arxiv_rewards as arxiv_rewards
+        arxiv_rewards.VERBOSE = bool(output_verbose)
+    except Exception:
+        pass
+    try:
+        import rewards.tldr_rewards as tldr_rewards
+        tldr_rewards.VERBOSE = bool(output_verbose)
+    except Exception:
+        pass
 
     formatter = get_formatter(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -289,12 +302,14 @@ def main():
     if config.get("output.save_final_model", True):
         save_path = config.get("output.save_path", os.path.join(output_dir, "final_model"))
         trainer.save_model(save_path)
-        print(f"Model saved to: {save_path}")
+        if output_verbose:
+            print(f"Model saved to: {save_path}")
 
     if hasattr(config, "save"):
         config_save_path = os.path.join(output_dir, "config.yaml")
         config.save(config_save_path)
-        print(f"Configuration saved to: {config_save_path}")
+        if output_verbose:
+            print(f"Configuration saved to: {config_save_path}")
 
 
 if __name__ == "__main__":

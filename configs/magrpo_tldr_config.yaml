@@ -34,12 +34,14 @@ output:
 
 # MAGRPO training configuration
 magrpo:
-  num_train_epochs: 1  # Exact value from train_tldr.py
+  num_train_epochs: 5  # Exact value from train_tldr.py
   per_device_train_batch_size: 1
-  rollout_buffer_size: 2
+  rollout_buffer_size: 4
   learning_rate: 5.0e-6  # Exact value from train_tldr.py
-  logging_steps: 10  # Exact value from train_tldr.py
+  logging_steps: 50  # Exact value from train_tldr.py
   save_steps: 100  # Exact value from train_tldr.py
+  eval_interval: 4
+  eval_num_samples: 4
   num_generations: 4
   max_new_tokens: 256
   # Note: temperature and top_p not specified in original, will use model defaults
