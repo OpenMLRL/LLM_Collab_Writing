@@ -139,14 +139,8 @@ def make_reward_function(dataset_type: str) -> Callable[..., List[float]]:
     else:
         raise ValueError(f"Unsupported dataset type '{dataset_type}'.")
 
-    def reward_fn(*agent_completions, batch_items=None, prompts=None):
-        if len(agent_completions) < 2:
-            raise ValueError(
-                "Writing tasks expect two agent completions for reward calculation."
-            )
-
-        completions1 = agent_completions[0]
-        completions2 = agent_completions[1]
+    def reward_fn(prompts, completions1, completions2):
+        _ = prompts  # prompt text not needed for reward
         return base_reward(completions1, completions2)
 
     return reward_fn
