@@ -42,6 +42,7 @@ iac:
   critic_model: null
   eval_interval: 20
   eval_num_samples: 4
+  logging_steps: 10
 
 reward_processor:
   enabled: true

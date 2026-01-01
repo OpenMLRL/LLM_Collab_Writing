@@ -43,6 +43,7 @@ maac:
   critic_model: null
   eval_interval: 80
   eval_num_samples: 4
+  logging_steps: 10
 
 reward_processor:
   enabled: true

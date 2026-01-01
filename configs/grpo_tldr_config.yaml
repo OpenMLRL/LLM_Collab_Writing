@@ -30,8 +30,7 @@ grpo:
   num_train_epochs: 1
   per_device_train_batch_size: 1
   learning_rate: 5.0e-6
-  logging_steps: 10
-  save_steps: 100
+  logging_steps: 400
   eval_interval: 4
   eval_num_samples: 4
   num_generations: 4

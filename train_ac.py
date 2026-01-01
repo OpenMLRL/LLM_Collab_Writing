@@ -295,6 +295,7 @@ def main() -> None:
             discount=ac_cfg.get("discount", 0.9),
             eval_interval=ac_cfg.get("eval_interval", 4),
             eval_num_samples=ac_cfg.get("eval_num_samples", 4),
+            logging_steps=ac_cfg.get("logging_steps", 1),
         ),
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
