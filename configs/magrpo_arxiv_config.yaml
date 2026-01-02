@@ -36,6 +36,9 @@ magrpo:
   eval_num_samples: 4
   num_generations: 4
   max_new_tokens: 256
+  temperature: 0.7
+  top_p: 0.9
+  top_k: null
 
 agents:
   num_agents: 2
