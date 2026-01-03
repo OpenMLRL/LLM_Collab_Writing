@@ -35,6 +35,7 @@ grpo:
   eval_num_samples: 4
   num_generations: 4
   max_new_tokens: 512
+  top_k: null
 
 reward_processor:
   enabled: true

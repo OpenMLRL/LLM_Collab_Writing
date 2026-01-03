@@ -216,6 +216,7 @@ def main():
 
     temperature = grpo_cfg.get("temperature", model_config.temperature)
     top_p = grpo_cfg.get("top_p", model_config.top_p)
+    top_k = grpo_cfg.get("top_k")
 
     grpo_args = MAGRPOConfig(
         output_dir=output_dir,
@@ -229,6 +230,7 @@ def main():
         max_new_tokens=grpo_cfg.get("max_new_tokens", 512),
         temperature=temperature,
         top_p=top_p,
+        top_k=top_k,
         eval_interval=grpo_cfg.get("eval_interval", 4),
         eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
         num_turns=1,
