@@ -1,12 +1,4 @@
 #!/bin/bash
-#SBATCH --job-name=eval_parallel_tldr
-#SBATCH --time=08:00:00
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
-#SBATCH --mem=48GB
-#SBATCH --cpus-per-task=8
-#SBATCH --output=evals/logs/parallel.%j.out
-
 # ==============================================================================
 # Parallel Evaluation Script for TLDR
 # ==============================================================================
@@ -16,22 +8,33 @@
 # Agent 2: Detailed elaboration (2-3x longer)
 # ==============================================================================
 
-# Print job information
+set -e  # Exit on error
+
+# Print script information
 echo "=============================================="
-echo "Job ID: $SLURM_JOB_ID"
-echo "Job started at: $(date)"
-echo "Running on node: $(hostname)"
+echo "TLDR Parallel Evaluation"
+echo "Started at: $(date)"
 echo "Working directory: $(pwd)"
 echo "=============================================="
 
-# Load required modules (adjust for your cluster)
-module load anaconda 2>/dev/null || true
-module load cuda/12.1 2>/dev/null || true
+# Check if conda is available
+if ! command -v conda &> /dev/null; then
+    echo "Error: conda not found. Please activate your conda environment first."
+    exit 1
+fi
 
 # Activate conda environment
 if [ -f "$(conda info --base)/etc/profile.d/conda.sh" ]; then
     source "$(conda info --base)/etc/profile.d/conda.sh"
-    conda activate comlrl 2>/dev/null || conda activate base
+    conda activate comlrl
+    echo "✓ Conda environment activated: comlrl"
+else
+    echo "Warning: Could not find conda.sh. Make sure conda is in your PATH."
+    echo "Attempting to activate comlrl environment..."
+    conda activate comlrl || {
+        echo "Error: Failed to activate comlrl environment"
+        exit 1
+    }
 fi
 
 # Configuration
@@ -46,17 +49,21 @@ echo ""
 mkdir -p "evals/results"
 mkdir -p "evals/logs"
 
+# Change to script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."  # Go to LLM_Collab_Writing root
+
 # Run evaluation
+echo "Starting TLDR parallel evaluation..."
 python evals/eval_parallel.py \
     --config "$CONFIG_FILE" \
     --verbose
 
-# Capture exit status
 EXIT_STATUS=$?
 
 echo ""
 echo "=============================================="
-echo "Job completed at: $(date)"
+echo "TLDR evaluation completed at: $(date)"
 echo "Exit status: $EXIT_STATUS"
 echo "Results saved to: evals/results"
 echo "=============================================="
