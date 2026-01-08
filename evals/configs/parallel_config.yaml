@@ -1,0 +1,53 @@
+# Parallel Evaluation Configuration for TLDR
+# This configuration mirrors the training config for fair comparison
+
+# Model configuration
+model:
+  name: "Qwen/Qwen3-1.7B"
+  type: "qwen"
+  tokenizer_kwargs:
+    trust_remote_code: true
+  model_kwargs:
+    trust_remote_code: true
+    torch_dtype: "auto"
+
+# Tokenizer settings
+tokenizer:
+  padding_side: "left"
+
+# Dataset configuration
+dataset:
+  name: "trl-lib/tldr"
+  type: "tldr"
+  eval_split: "test[:1100]"
+
+# Evaluation settings
+evaluation:
+  num_attempts: 1  # Number of attempts per problem (TLDR doesn't use Pass@k, so 1 is sufficient)
+  max_new_tokens: 256
+  temperature: 0.7
+  top_p: 0.9
+  top_k: null
+
+# Output configuration
+output:
+  base_dir: "evals/results"
+  verbose: true
+
+# Metrics to collect
+metrics:
+  - time_per_agent      # Wall-clock generation time (seconds)
+  - tokens_per_agent    # Number of tokens produced
+  - score               # Total reward from tldr_combined_reward (max 3.0)
+  - level1_reward       # Structural (both 8-256 tokens)
+  - level2_reward       # Coordination (length ratio 1.6-3.2x optimal)
+  - level3_reward       # Vocabulary Diversity (unique words ratio >= 2.0x)
+  - level4_reward       # Style (transition words + Jaccard similarity)
+  - length_ratio        # C2/C1 length ratio
+  - unique_words_ratio  # Unique words in C2 / C1
+
+# Notes:
+# - Parallel configuration: Both agents generate simultaneously with NO communication
+# - Agent 1 (Summary): Creates concise summary (1-2 sentences)
+# - Agent 2 (Elaboration): Creates detailed summary (2-3x longer, more unique vocabulary)
+# - Results evaluated together for coordination metrics
