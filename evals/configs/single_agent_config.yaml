@@ -1,0 +1,40 @@
+# TLDR Single-Agent Evaluation Configuration
+# Single 7B model with double token budget (512)
+
+# Config metadata
+config_name: single_agent
+config_type: single_agent
+
+# Model configuration (larger model for single agent)
+model:
+  name: "Qwen/Qwen3-4B"
+  type: "qwen"
+  tokenizer_kwargs:
+    trust_remote_code: true
+  model_kwargs:
+    trust_remote_code: true
+    torch_dtype: "bfloat16"
+
+# Dataset configuration
+dataset:
+  name: "trl-lib/tldr"
+  type: "tldr"
+  # Same as parallel config for fair comparison
+  eval_split: "test[:1100]"
+
+# Evaluation parameters
+evaluation:
+  # Number of attempts per problem
+  # TLDR does not use Pass@k, so num_attempts=1
+  num_attempts: 1
+  
+  # Generation hyperparameters (same temp/top_p as multi-agent for fair comparison)
+  temperature: 0.7
+  top_p: 0.9
+  # Double token budget for single agent (512 vs 256 per agent)
+  max_new_tokens: 512
+
+# Output configuration
+output:
+  base_dir: "evals/results"
+  verbose: false
