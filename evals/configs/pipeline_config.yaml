@@ -19,7 +19,7 @@ model:
 dataset:
   name: "trl-lib/tldr"
   type: "tldr"
-  eval_split: "test[:100]"  # Subset for quick testing; use "test[:1100]" for full evaluation
+  eval_split: "test[:1100]"
 
 # Evaluation Parameters
 evaluation:
