@@ -1,0 +1,41 @@
+# TLDR Discussion (2-turn) Evaluation Configuration
+# Turn 1: Parallel (no communication)
+# Turn 2: Both agents see each other's outputs and refine
+
+# Config metadata
+config_name: discussion
+config_type: multi_agent
+num_turns: 2
+
+# Model configuration (same for both agents)
+model:
+  name: "Qwen/Qwen3-1.7B"
+  type: "qwen"
+  tokenizer_kwargs:
+    trust_remote_code: true
+  model_kwargs:
+    trust_remote_code: true
+    torch_dtype: "bfloat16"
+
+# Dataset configuration
+dataset:
+  name: "trl-lib/tldr"
+  type: "tldr"
+  # Same as parallel config for fair comparison
+  eval_split: "test[:1100]"
+
+# Evaluation parameters
+evaluation:
+  # Number of attempts per problem
+  # TLDR does not use Pass@k, so num_attempts=1
+  num_attempts: 1
+  
+  # Generation hyperparameters (same as training)
+  temperature: 0.7
+  top_p: 0.9
+  max_new_tokens: 256
+
+# Output configuration
+output:
+  base_dir: "evals/results"
+  verbose: false
