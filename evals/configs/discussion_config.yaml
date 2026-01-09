@@ -38,4 +38,4 @@ evaluation:
 # Output configuration
 output:
   base_dir: "evals/results"
-  verbose: false
+  verbose: true
