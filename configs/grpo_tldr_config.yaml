@@ -27,6 +27,7 @@ output:
   save_path: "./magrpo_output/tldr_single"
 
 grpo:
+  num_turns: 1
   num_train_epochs: 1
   per_device_train_batch_size: 1
   learning_rate: 5.0e-6
