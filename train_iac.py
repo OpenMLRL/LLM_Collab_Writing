@@ -269,9 +269,19 @@ def main() -> None:
     reward_func = make_reward_function(dataset_type)
 
     reward_processor = None
-    if config.get("reward_processor.enabled", False):
-        scale_factor = config.get("reward_processor.scale_factor", 1)
+    if config.get("reward_processor.enabled", True):
+        scale_factor = config.get("reward_processor.scale_factor", 1.0)
         reward_processor = RewardProcessors.scale(factor=scale_factor)
+        shift_val = config.get("reward_processor.shift", None)
+        if shift_val is not None:
+            try:
+                shift_val_f = float(shift_val)
+            except (TypeError, ValueError):
+                shift_val_f = None
+            if shift_val_f is not None:
+                shift_proc = RewardProcessors.shift(value=shift_val_f)
+                prev = reward_processor
+                reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
     trainer = IACTrainer(
         model=model_name,
