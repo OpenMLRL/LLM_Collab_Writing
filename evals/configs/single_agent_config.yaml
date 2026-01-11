@@ -1,5 +1,8 @@
 # TLDR Single-Agent Evaluation Configuration
 # Single 7B model with double token budget (512)
+# 
+# NOTE: Uses natural paragraph splitting (blank line between paragraphs)
+# instead of explicit [PARAGRAPH_SPLIT] delimiter for better reliability
 
 # Config metadata
 config_name: single_agent

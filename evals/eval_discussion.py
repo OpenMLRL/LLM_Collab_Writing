@@ -360,8 +360,10 @@ def evaluate_discussion(
             metric = metrics[0] if metrics else {}
 
             # Calculate totals (both turns)
-            total_time_agent1 = time1_t1 + time1_t2
-            total_time_agent2 = time2_t1 + time2_t2
+            # NOTE: For discussion, each turn runs agents in parallel (max), turns are sequential (sum)
+            turn1_time = max(time1_t1, time2_t1)  # Parallel within turn 1
+            turn2_time = max(time1_t2, time2_t2)  # Parallel within turn 2
+            total_time = turn1_time + turn2_time   # Sequential across turns
             total_tokens_agent1 = summary_tokens_t1 + summary_tokens_t2
             total_tokens_agent2 = elaboration_tokens_t1 + elaboration_tokens_t2
 
@@ -374,17 +376,17 @@ def evaluate_discussion(
                 "agent1_tokens_t1": summary_tokens_t1,
                 "agent2_time_t1_s": round(time2_t1, 4),
                 "agent2_tokens_t1": elaboration_tokens_t1,
+                "turn1_time_s": round(turn1_time, 4),  # max() for parallel
                 # Turn 2 metrics
                 "agent1_time_t2_s": round(time1_t2, 4),
                 "agent1_tokens_t2": summary_tokens_t2,
                 "agent2_time_t2_s": round(time2_t2, 4),
                 "agent2_tokens_t2": elaboration_tokens_t2,
+                "turn2_time_s": round(turn2_time, 4),  # max() for parallel
                 # Totals
-                "agent1_time_total_s": round(total_time_agent1, 4),
                 "agent1_tokens_total": total_tokens_agent1,
-                "agent2_time_total_s": round(total_time_agent2, 4),
                 "agent2_tokens_total": total_tokens_agent2,
-                "total_time_s": round(total_time_agent1 + total_time_agent2, 4),
+                "total_time_s": round(total_time, 4),  # sum of turn times
                 "total_tokens": total_tokens_agent1 + total_tokens_agent2,
                 # Score (from Turn 2)
                 "score": round(score, 4),
@@ -401,9 +403,9 @@ def evaluate_discussion(
             print(f"{'='*60}")
             print(f"Problem {prob_idx + 1}/{len(dataset)}")
             print(f"Attempt {attempt_idx + 1}/{num_attempts}")
-            print(f"  T1 Time: {time1_t1:.2f}s + {time2_t1:.2f}s")
-            print(f"  T2 Time: {time1_t2:.2f}s + {time2_t2:.2f}s")
-            print(f"  Total Time: {total_time_agent1 + total_time_agent2:.2f}s")
+            print(f"  T1 Time: max({time1_t1:.2f}s, {time2_t1:.2f}s) = {turn1_time:.2f}s")
+            print(f"  T2 Time: max({time1_t2:.2f}s, {time2_t2:.2f}s) = {turn2_time:.2f}s")
+            print(f"  Total Time: {turn1_time:.2f}s + {turn2_time:.2f}s = {total_time:.2f}s")
             print(f"  Total Tokens: {total_tokens_agent1} + {total_tokens_agent2} = {total_tokens_agent1 + total_tokens_agent2}")
             print(f"  Score: {score:.2f}")
             print(f"{'='*60}")
@@ -415,16 +417,16 @@ def evaluate_discussion(
         # Turn 1 averages
         "avg_time_agent1_t1": sum(r["agent1_time_t1_s"] for r in all_results) / len(all_results),
         "avg_time_agent2_t1": sum(r["agent2_time_t1_s"] for r in all_results) / len(all_results),
+        "avg_turn1_time": sum(r["turn1_time_s"] for r in all_results) / len(all_results),  # max per turn
         "avg_tokens_agent1_t1": sum(r["agent1_tokens_t1"] for r in all_results) / len(all_results),
         "avg_tokens_agent2_t1": sum(r["agent2_tokens_t1"] for r in all_results) / len(all_results),
         # Turn 2 averages
         "avg_time_agent1_t2": sum(r["agent1_time_t2_s"] for r in all_results) / len(all_results),
         "avg_time_agent2_t2": sum(r["agent2_time_t2_s"] for r in all_results) / len(all_results),
+        "avg_turn2_time": sum(r["turn2_time_s"] for r in all_results) / len(all_results),  # max per turn
         "avg_tokens_agent1_t2": sum(r["agent1_tokens_t2"] for r in all_results) / len(all_results),
         "avg_tokens_agent2_t2": sum(r["agent2_tokens_t2"] for r in all_results) / len(all_results),
-        # Totals
-        "avg_time_agent1_total": sum(r["agent1_time_total_s"] for r in all_results) / len(all_results),
-        "avg_time_agent2_total": sum(r["agent2_time_total_s"] for r in all_results) / len(all_results),
+        # Totals (turn1 + turn2, where each turn is max of agents)
         "avg_time_total": sum(r["total_time_s"] for r in all_results) / len(all_results),
         "avg_tokens_agent1_total": sum(r["agent1_tokens_total"] for r in all_results) / len(all_results),
         "avg_tokens_agent2_total": sum(r["agent2_tokens_total"] for r in all_results) / len(all_results),
@@ -486,15 +488,17 @@ def evaluate_discussion(
     print(f"\nTurn 1 (Parallel) Metrics:")
     print(f"  Avg Time (Agent 1): {aggregated['avg_time_agent1_t1']:.2f}s")
     print(f"  Avg Time (Agent 2): {aggregated['avg_time_agent2_t1']:.2f}s")
+    print(f"  Avg Turn 1 Time (max): {aggregated['avg_turn1_time']:.2f}s")
     print(f"  Avg Tokens (Agent 1): {aggregated['avg_tokens_agent1_t1']:.1f}")
     print(f"  Avg Tokens (Agent 2): {aggregated['avg_tokens_agent2_t1']:.1f}")
     print(f"\nTurn 2 (Refinement) Metrics:")
     print(f"  Avg Time (Agent 1): {aggregated['avg_time_agent1_t2']:.2f}s")
     print(f"  Avg Time (Agent 2): {aggregated['avg_time_agent2_t2']:.2f}s")
+    print(f"  Avg Turn 2 Time (max): {aggregated['avg_turn2_time']:.2f}s")
     print(f"  Avg Tokens (Agent 1): {aggregated['avg_tokens_agent1_t2']:.1f}")
     print(f"  Avg Tokens (Agent 2): {aggregated['avg_tokens_agent2_t2']:.1f}")
     print(f"\nTotal Metrics:")
-    print(f"  Avg Time (Total):   {aggregated['avg_time_total']:.2f}s")
+    print(f"  Avg Time (T1+T2):   {aggregated['avg_time_total']:.2f}s")
     print(f"  Avg Tokens (Total): {aggregated['avg_tokens_total']:.1f}")
     print(f"  Avg Score: {aggregated['avg_score']:.2f}")
     print(f"  Avg Length Ratio: {aggregated['avg_length_ratio']:.2f}")

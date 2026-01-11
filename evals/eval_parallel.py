@@ -251,6 +251,8 @@ def evaluate_parallel(
             metric = metrics[0] if metrics else {}
 
             # Store attempt result
+            # NOTE: For parallel execution, total_time = max(time1, time2) since agents run simultaneously
+            parallel_time = max(time1, time2)
             attempt_result = {
                 "problem_id": prob_idx,
                 "attempt_id": attempt_idx,
@@ -258,7 +260,7 @@ def evaluate_parallel(
                 "agent1_tokens": summary_tokens,
                 "agent2_time_s": round(time2, 4),
                 "agent2_tokens": elaboration_tokens,
-                "total_time_s": round(time1 + time2, 4),
+                "total_time_s": round(parallel_time, 4),  # max() for parallel
                 "total_tokens": summary_tokens + elaboration_tokens,
                 "score": round(score, 4),
                 "level1_reward": round(metric.get("level1_reward", 0.0), 4),
@@ -271,7 +273,7 @@ def evaluate_parallel(
             all_results.append(attempt_result)
 
             if verbose:
-                print(f"    Time: {time1:.2f}s + {time2:.2f}s = {time1+time2:.2f}s")
+                print(f"    Time: max({time1:.2f}s, {time2:.2f}s) = {parallel_time:.2f}s")
                 print(f"    Tokens: {summary_tokens} + {elaboration_tokens} = {summary_tokens+elaboration_tokens}")
                 print(f"    Score: {score:.2f}")
 
@@ -339,7 +341,7 @@ def evaluate_parallel(
     print(f"\nAggregated Metrics:")
     print(f"  Avg Time (Agent 1): {aggregated['avg_time_agent1']:.2f}s")
     print(f"  Avg Time (Agent 2): {aggregated['avg_time_agent2']:.2f}s")
-    print(f"  Avg Time (Total):   {aggregated['avg_time_total']:.2f}s")
+    print(f"  Avg Time (Total = max): {aggregated['avg_time_total']:.2f}s")
     print(f"  Avg Tokens (Agent 1): {aggregated['avg_tokens_agent1']:.1f}")
     print(f"  Avg Tokens (Agent 2): {aggregated['avg_tokens_agent2']:.1f}")
     print(f"  Avg Tokens (Total):   {aggregated['avg_tokens_total']:.1f}")

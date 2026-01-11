@@ -47,29 +47,26 @@ from rewards.tldr_rewards import tldr_combined_reward
 def single_agent_formatter(example: Dict[str, Any]) -> str:
     """
     Formatter for single-agent TLDR generation.
-    Combines both agent tasks into one prompt with delimiter.
+    Combines both agent tasks into one prompt.
     Prompt style matches multi-agent prompts as closely as possible.
+    Uses natural paragraph breaks (blank line) instead of special delimiters.
     """
     prompt = example.get("prompt", "")
 
     if not prompt:
         return "Error: No prompt provided."
 
-    prompt_text = f"""Create a summary response to this post in exactly two parts.
+    prompt_text = f"""Create a summary response to this post in two paragraphs.
 
 Query:
 {prompt}
 
 IMPORTANT INSTRUCTIONS:
-- First part: Provide a brief, focused summary in one sentence or a few sentences
-- Second part: Expand with more details, use more unique words, and use transition words to improve flow
-- Make the second part 2-3 times longer than the first part
-- Separate the two parts with exactly this delimiter: [PARAGRAPH_SPLIT]
+- First paragraph: Provide a brief, focused summary in one sentence or a few sentences
+- Second paragraph: Expand with more details, use more unique words, and use transition words to improve flow
+- Make the second paragraph 2-3 times longer than the first paragraph
 
-FORMAT:
-Part 1: ...
-[PARAGRAPH_SPLIT]
-Part 2: ...
+Write the first paragraph, then leave a blank line, then write the second paragraph.
 """
 
     return prompt_text
@@ -79,37 +76,82 @@ def split_response_into_paragraphs(response: str) -> Tuple[str, str]:
     """
     Split a model response into two paragraphs.
     
-    Strategy:
-    1. Try to split by [PARAGRAPH_SPLIT] delimiter
-    2. Fallback: Look for "Part 2:" pattern
-    3. Last resort: Split at roughly 1/3 point
+    Strategy (in order of preference):
+    1. Try explicit [PARAGRAPH_SPLIT] delimiter (backward compatible)
+    2. Try double newline \\n\\n (most natural paragraph separator)
+    3. Try single newline \\n
+    4. Fallback: Look for "Part 2:" or "Second paragraph:" patterns
+    5. Last resort: Split at ~40% point (shorter first paragraph)
     """
     response = response.strip()
-    delimiter = "[PARAGRAPH_SPLIT]"
-
-    if delimiter in response:
-        parts = response.split(delimiter, 1)
+    
+    # 1. Try explicit delimiter first (backward compatible)
+    if "[PARAGRAPH_SPLIT]" in response:
+        parts = response.split("[PARAGRAPH_SPLIT]", 1)
         para1 = parts[0].strip()
         para2 = parts[1].strip() if len(parts) > 1 else ""
-    else:
-        # Fallback: look for "Part 2:" pattern
-        part2_pattern = re.compile(r"Part 2:\s*", re.IGNORECASE)
-        match = part2_pattern.search(response)
-
-        if match:
-            para1 = response[: match.start()].strip()
-            para2 = response[match.end() :].strip()
-        else:
-            # Last resort: split at 1/3 point
-            midpoint = len(response) // 3 or 1
-            para1 = response[:midpoint].strip()
-            para2 = response[midpoint:].strip()
-
-    # Clean up any "Part 1:" prefix
-    para1 = re.sub(r"^Part 1:\s*", "", para1, flags=re.IGNORECASE)
-    para2 = re.sub(r"^Part 2:\s*", "", para2, flags=re.IGNORECASE)
+        return _clean_paragraph_prefixes(para1, para2)
     
-    return para1, para2
+    # 2. Try double newline (most natural paragraph separator)
+    if "\n\n" in response:
+        parts = response.split("\n\n", 1)
+        para1 = parts[0].strip()
+        para2 = parts[1].strip() if len(parts) > 1 else ""
+        # Only use this split if both parts are non-trivial
+        if len(para1) > 20 and len(para2) > 20:
+            return _clean_paragraph_prefixes(para1, para2)
+    
+    # 3. Try single newline
+    if "\n" in response:
+        parts = response.split("\n", 1)
+        para1 = parts[0].strip()
+        para2 = parts[1].strip() if len(parts) > 1 else ""
+        # Only use this split if both parts are non-trivial
+        if len(para1) > 20 and len(para2) > 20:
+            return _clean_paragraph_prefixes(para1, para2)
+    
+    # 4. Try pattern-based splitting
+    patterns = [
+        r"(?:Second paragraph|Paragraph 2|Part 2):\s*",
+        r"\n(?:2\.\s+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, response, re.IGNORECASE)
+        if match:
+            para1 = response[:match.start()].strip()
+            para2 = response[match.end():].strip()
+            if len(para1) > 10 and len(para2) > 10:
+                return _clean_paragraph_prefixes(para1, para2)
+    
+    # 5. Last resort: split at ~40% point (first paragraph should be shorter)
+    split_idx = int(len(response) * 0.4)
+    # Find nearest space to avoid breaking words
+    while split_idx < len(response) and response[split_idx] not in ' \n':
+        split_idx += 1
+    
+    para1 = response[:split_idx].strip()
+    para2 = response[split_idx:].strip()
+    
+    return _clean_paragraph_prefixes(para1, para2)
+
+
+def _clean_paragraph_prefixes(para1: str, para2: str) -> Tuple[str, str]:
+    """
+    Clean up common prefixes from paragraphs.
+    """
+    # Common prefixes to remove
+    prefixes = [
+        r"^(?:First paragraph|Paragraph 1|Part 1):\s*",
+        r"^(?:Second paragraph|Paragraph 2|Part 2):\s*",
+        r"^1\.\s+",
+        r"^2\.\s+",
+    ]
+    
+    for pattern in prefixes:
+        para1 = re.sub(pattern, "", para1, flags=re.IGNORECASE)
+        para2 = re.sub(pattern, "", para2, flags=re.IGNORECASE)
+    
+    return para1.strip(), para2.strip()
 
 
 def generate_completion(
