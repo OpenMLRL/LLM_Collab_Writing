@@ -5,7 +5,7 @@
 # This script runs the Single-Agent configuration evaluation for TLDR.
 # Single-agent uses:
 #   - One larger model (vs 2x smaller in multi-agent)
-#   - 512 max_new_tokens (vs 256 per agent)
+#   - 260 max_new_tokens (matching baseline, not 512)
 #   - Generates both paragraphs with [PARAGRAPH_SPLIT] delimiter
 #
 # Usage:
@@ -49,7 +49,7 @@ CONFIG_FILE="evals/configs/single_agent_config.yaml"
 echo ""
 echo "Configuration:"
 echo "  Config file: $CONFIG_FILE"
-echo "  Max tokens: 512"
+echo "  Max tokens: 260 (matching baseline)"
 
 # Run the evaluation
 echo ""

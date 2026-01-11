@@ -128,7 +128,7 @@ def generate_completion(
     model: AutoModelForCausalLM,
     tokenizer: AutoTokenizer,
     prompt: str,
-    max_new_tokens: int = 512,
+    max_new_tokens: int = 260,
     temperature: float = 0.7,
     top_p: float = 0.9,
     num_return_sequences: int = 1,
