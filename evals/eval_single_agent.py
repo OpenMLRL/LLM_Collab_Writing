@@ -3,14 +3,15 @@
 Single-Agent Evaluation Script for TLDR (Summarization)
 
 This script runs inference-only evaluation for the Single-Agent configuration
-where one 7B model generates both summary parts with double the token budget (512).
+matching the baseline approach that achieved 36.7% Return.
 
-Key features (matching baseline prompt structure):
+Key features (matching baseline):
 - Single 4B model (Qwen3-4B)
-- 512 max_new_tokens (double the 256 per agent in multi-agent)
+- 260 max_new_tokens (matching baseline, not 512)
 - Explicit [PARAGRAPH_SPLIT] delimiter requirement in prompt
-- Detailed instructions about paragraph length and transition words
+- Detailed instructions about paragraph length (10-200 tokens) and transition words
 - Fallback splitting with 2.0-3.0x ratio if delimiter missing
+- 260 tokens ensures both paragraphs stay within reward function's 8-256 token range
 
 Metrics tracked:
 - Time: Wall-clock generation time (seconds)
@@ -177,7 +178,7 @@ def evaluate_single_agent(
     eval_split: str,
     output_dir: str,
     num_attempts: int = 1,
-    max_new_tokens: int = 512,
+    max_new_tokens: int = 260,
     temperature: float = 0.7,
     top_p: float = 0.9,
     verbose: bool = False,
@@ -185,10 +186,11 @@ def evaluate_single_agent(
     """
     Run single-agent evaluation on TLDR dataset.
     
-    Matches baseline prompt structure that achieved 36.7% Return:
+    Matches baseline approach that achieved 36.7% Return:
     - Uses explicit [PARAGRAPH_SPLIT] delimiter in prompt
-    - 512 max_new_tokens (double the 256 per agent in multi-agent)
-    - Explicit instructions about paragraph length and transition words
+    - 260 max_new_tokens (matching baseline, not 512)
+    - Explicit instructions about paragraph length (10-200 tokens) and transition words
+    - 260 tokens ensures both paragraphs stay within reward function's 8-256 token range
 
     Args:
         model_name: HuggingFace model name (should be 4B model for TLDR)
@@ -196,7 +198,7 @@ def evaluate_single_agent(
         eval_split: Dataset split for evaluation
         output_dir: Directory to save results
         num_attempts: Number of attempts per problem
-        max_new_tokens: Maximum tokens to generate (512 for single-agent)
+        max_new_tokens: Maximum tokens to generate (260 matching baseline)
         temperature: Sampling temperature
         top_p: Top-p sampling
         verbose: Print detailed output
@@ -458,7 +460,7 @@ def parse_args():
         "eval_split": args.eval_split or config.get("dataset", {}).get("eval_split", "test[:1100]"),
         "output_dir": args.output_dir or config.get("output", {}).get("base_dir", "evals/results"),
         "num_attempts": args.num_attempts or config.get("evaluation", {}).get("num_attempts", 1),
-        "max_new_tokens": args.max_new_tokens or config.get("evaluation", {}).get("max_new_tokens", 512),
+        "max_new_tokens": args.max_new_tokens or config.get("evaluation", {}).get("max_new_tokens", 260),
         "temperature": args.temperature or config.get("evaluation", {}).get("temperature", 0.7),
         "top_p": args.top_p or config.get("evaluation", {}).get("top_p", 0.9),
         "verbose": args.verbose if args.verbose is not None else config.get("output", {}).get("verbose", False),

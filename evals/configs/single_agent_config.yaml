@@ -1,5 +1,5 @@
 # TLDR Single-Agent Evaluation Configuration
-# Single 7B model with double token budget (512)
+# Single 4B model matching baseline approach (260 tokens)
 # 
 # NOTE: Uses natural paragraph splitting (blank line between paragraphs)
 # instead of explicit [PARAGRAPH_SPLIT] delimiter for better reliability
@@ -34,8 +34,8 @@ evaluation:
   # Generation hyperparameters (same temp/top_p as multi-agent for fair comparison)
   temperature: 0.7
   top_p: 0.9
-  # Double token budget for single agent (512 vs 256 per agent)
-  max_new_tokens: 512
+  # Matching baseline: 260 tokens (not 512) to keep paragraphs within reward limits
+  max_new_tokens: 260
 
 # Output configuration
 output:
