@@ -5,11 +5,12 @@ Single-Agent Evaluation Script for TLDR (Summarization)
 This script runs inference-only evaluation for the Single-Agent configuration
 where one 7B model generates both summary parts with double the token budget (512).
 
-Key differences from multi-agent:
-- Single 7B model (vs 2x 3B models)
-- 512 max_new_tokens (vs 256 per agent)
-- Must generate both parts with a delimiter
-- Output split into para1/para2 for reward evaluation
+Key features (matching baseline prompt structure):
+- Single 4B model (Qwen3-4B)
+- 512 max_new_tokens (double the 256 per agent in multi-agent)
+- Explicit [PARAGRAPH_SPLIT] delimiter requirement in prompt
+- Detailed instructions about paragraph length and transition words
+- Fallback splitting with 2.0-3.0x ratio if delimiter missing
 
 Metrics tracked:
 - Time: Wall-clock generation time (seconds)
@@ -25,6 +26,7 @@ import argparse
 import csv
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -56,83 +58,50 @@ def single_agent_formatter(example: Dict[str, Any]) -> str:
     if not prompt:
         return "Error: No prompt provided."
 
-    prompt_text = f"""Create a summary response to this post in two paragraphs.
+    prompt_text = f"""Please provide a summary of this Reddit post in exactly two paragraphs:
 
-Query:
 {prompt}
 
-IMPORTANT INSTRUCTIONS:
-- First paragraph: Provide a brief, focused summary in one sentence or a few sentences
-- Second paragraph: Expand with more details, use more unique words, and use transition words to improve flow
-- Make the second paragraph 2-3 times longer than the first paragraph
+Instructions:
+- First paragraph: Provide a concise summary of the main points
+- Second paragraph: Expand on the summary with more details, using more unique vocabulary words, include as many categories of transition words as possible to improve flow, and make it 2-3 times longer than the first paragraph in terms of character count, while maintaining a consistent style
 
-Write the first paragraph, then leave a blank line, then write the second paragraph.
-"""
+IMPORTANT REQUIREMENTS - FOLLOW EXACTLY:
+- No paragraph should be less than 10 tokens or more than 200 tokens
+- Use EXACTLY this delimiter between paragraphs: [PARAGRAPH_SPLIT]
+
+Summary:
+Paragraph 1:"""
 
     return prompt_text
 
 
 def split_response_into_paragraphs(response: str) -> Tuple[str, str]:
     """
-    Split a model response into two paragraphs.
-    
-    Strategy (in order of preference):
-    1. Try explicit [PARAGRAPH_SPLIT] delimiter (backward compatible)
-    2. Try double newline \\n\\n (most natural paragraph separator)
-    3. Try single newline \\n
-    4. Fallback: Look for "Part 2:" or "Second paragraph:" patterns
-    5. Last resort: Split at ~40% point (shorter first paragraph)
+    Split the response into two paragraphs using the special delimiter.
+    Matches baseline approach: prioritize delimiter, fallback to ratio-based split.
     """
+    # Clean up the response
     response = response.strip()
-    
-    # 1. Try explicit delimiter first (backward compatible)
-    if "[PARAGRAPH_SPLIT]" in response:
-        parts = response.split("[PARAGRAPH_SPLIT]", 1)
-        para1 = parts[0].strip()
-        para2 = parts[1].strip() if len(parts) > 1 else ""
+
+    # Look for the special delimiter (primary method)
+    delimiter = "[PARAGRAPH_SPLIT]"
+    if delimiter in response:
+        # Split on the delimiter
+        paragraphs = response.split(delimiter, 1)  # Split only on first occurrence
+        para1 = paragraphs[0].strip()
+        para2 = paragraphs[1].strip() if len(paragraphs) > 1 else ""
         return _clean_paragraph_prefixes(para1, para2)
-    
-    # 2. Try double newline (most natural paragraph separator)
-    if "\n\n" in response:
-        parts = response.split("\n\n", 1)
-        para1 = parts[0].strip()
-        para2 = parts[1].strip() if len(parts) > 1 else ""
-        # Only use this split if both parts are non-trivial
-        if len(para1) > 20 and len(para2) > 20:
-            return _clean_paragraph_prefixes(para1, para2)
-    
-    # 3. Try single newline
-    if "\n" in response:
-        parts = response.split("\n", 1)
-        para1 = parts[0].strip()
-        para2 = parts[1].strip() if len(parts) > 1 else ""
-        # Only use this split if both parts are non-trivial
-        if len(para1) > 20 and len(para2) > 20:
-            return _clean_paragraph_prefixes(para1, para2)
-    
-    # 4. Try pattern-based splitting
-    patterns = [
-        r"(?:Second paragraph|Paragraph 2|Part 2):\s*",
-        r"\n(?:2\.\s+)",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, response, re.IGNORECASE)
-        if match:
-            para1 = response[:match.start()].strip()
-            para2 = response[match.end():].strip()
-            if len(para1) > 10 and len(para2) > 10:
-                return _clean_paragraph_prefixes(para1, para2)
-    
-    # 5. Last resort: split at ~40% point (first paragraph should be shorter)
-    split_idx = int(len(response) * 0.4)
-    # Find nearest space to avoid breaking words
-    while split_idx < len(response) and response[split_idx] not in ' \n':
-        split_idx += 1
-    
-    para1 = response[:split_idx].strip()
-    para2 = response[split_idx:].strip()
-    
-    return _clean_paragraph_prefixes(para1, para2)
+    else:
+        # Fallback: split to make second paragraph 2.0-3.0x longer than first (matching baseline)
+        ratio = random.uniform(2.0, 3.0)
+        split_point = int(len(response) / (1 + ratio))
+        # Find nearest space to avoid breaking words
+        while split_point < len(response) and response[split_point] not in ' \n':
+            split_point += 1
+        para1 = response[:split_point].strip()
+        para2 = response[split_point:].strip()
+        return _clean_paragraph_prefixes(para1, para2)
 
 
 def _clean_paragraph_prefixes(para1: str, para2: str) -> Tuple[str, str]:
@@ -168,8 +137,7 @@ def generate_completion(
     """
     device = model.device
 
-    # Tokenize
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(device)
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048).to(device)
     prompt_length = inputs.input_ids.shape[1]
 
     # Time the generation
@@ -216,12 +184,14 @@ def evaluate_single_agent(
 ) -> Dict[str, Any]:
     """
     Run single-agent evaluation on TLDR dataset.
-
-    Single 7B model generates both paragraphs in one output.
-    Output is split by delimiter and evaluated with tldr_combined_reward.
+    
+    Matches baseline prompt structure that achieved 36.7% Return:
+    - Uses explicit [PARAGRAPH_SPLIT] delimiter in prompt
+    - 512 max_new_tokens (double the 256 per agent in multi-agent)
+    - Explicit instructions about paragraph length and transition words
 
     Args:
-        model_name: HuggingFace model name (should be 7B model)
+        model_name: HuggingFace model name (should be 4B model for TLDR)
         dataset_name: Dataset name
         eval_split: Dataset split for evaluation
         output_dir: Directory to save results
