@@ -1,18 +1,18 @@
 #!/bin/bash
 # ==============================================================================
-# Parallel Evaluation Script for TLDR
+# Parallel Evaluation Script for arXiv
 # ==============================================================================
 # This script runs the parallel (naive concatenation) evaluation where both
-# agents generate summaries simultaneously with NO communication.
-# Agent 1: Concise summary
-# Agent 2: Detailed elaboration (2-3x longer)
+# agents generate introduction sections simultaneously with NO communication.
+# Agent 1: Background and motivation
+# Agent 2: Methodology and implications
 # ==============================================================================
 
 set -e  # Exit on error
 
 # Print script information
 echo "=============================================="
-echo "TLDR Parallel Evaluation"
+echo "arXiv Parallel Evaluation"
 echo "Started at: $(date)"
 echo "Working directory: $(pwd)"
 echo "=============================================="
@@ -38,7 +38,7 @@ else
 fi
 
 # Configuration
-CONFIG_FILE="${CONFIG_FILE:-evals/configs/parallel_config.yaml}"
+CONFIG_FILE="${CONFIG_FILE:-evals/configs/arxiv_parallel_config.yaml}"
 
 echo ""
 echo "Configuration:"
@@ -54,8 +54,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."  # Go to LLM_Collab_Writing root
 
 # Run evaluation
-echo "Starting TLDR parallel evaluation..."
-python evals/eval_parallel.py \
+echo "Starting arXiv parallel evaluation..."
+python evals/eval_arxiv_parallel.py \
     --config "$CONFIG_FILE" \
     --verbose
 
@@ -63,7 +63,7 @@ EXIT_STATUS=$?
 
 echo ""
 echo "=============================================="
-echo "TLDR evaluation completed at: $(date)"
+echo "arXiv evaluation completed at: $(date)"
 echo "Exit status: $EXIT_STATUS"
 echo "Results saved to: evals/results"
 echo "=============================================="

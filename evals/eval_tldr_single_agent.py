@@ -388,7 +388,7 @@ def parse_args():
     parser.add_argument(
         "--config",
         type=str,
-        default="evals/configs/single_agent_config.yaml",
+        default="evals/configs/tldr_single_agent_config.yaml",
         help="Path to YAML config file",
     )
     parser.add_argument(

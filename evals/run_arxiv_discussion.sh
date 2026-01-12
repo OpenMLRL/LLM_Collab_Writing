@@ -1,28 +1,28 @@
 #!/bin/bash
 #
-# TLDR Discussion (2-turn) Evaluation Runner
+# arXiv Discussion (2-turn) Evaluation Runner
 # 
-# This script runs the Discussion configuration evaluation for TLDR.
+# This script runs the Discussion configuration evaluation for arXiv.
 # Discussion uses 2 turns:
 #   - Turn 1: Both agents generate independently (Parallel)
 #   - Turn 2: Both agents see each other's outputs and refine
 #
 # Usage:
-#   ./run_discussion.sh                     # Use default config
-#   ./run_discussion.sh --verbose           # With detailed output
-#   ./run_discussion.sh --eval-split "test[:100]"  # Custom split
+#   ./run_arxiv_discussion.sh                     # Use default config
+#   ./run_arxiv_discussion.sh --verbose           # With detailed output
+#   ./run_arxiv_discussion.sh --eval-split "val[:100]"  # Custom split
 #
 # To run in tmux (survives SSH disconnection):
-#   tmux new-session -d -s tldr_discussion
-#   tmux send-keys -t tldr_discussion 'cd /path/to/LLM_Collab_Writing && ./evals/run_discussion.sh' Enter
-#   tmux attach -t tldr_discussion
+#   tmux new-session -d -s arxiv_discussion
+#   tmux send-keys -t arxiv_discussion 'cd /path/to/LLM_Collab_Writing && ./evals/run_arxiv_discussion.sh' Enter
+#   tmux attach -t arxiv_discussion
 #
 
 set -e
 
 # Print header
 echo "=============================================="
-echo "TLDR Discussion (2-turn) Evaluation"
+echo "arXiv Discussion (2-turn) Evaluation"
 echo "Started at: $(date)"
 echo "Working directory: $(pwd)"
 echo "=============================================="
@@ -44,7 +44,7 @@ else
 fi
 
 # Configuration
-CONFIG_FILE="evals/configs/discussion_config.yaml"
+CONFIG_FILE="evals/configs/arxiv_discussion_config.yaml"
 echo ""
 echo "Configuration:"
 echo "  Config file: $CONFIG_FILE"
@@ -52,12 +52,12 @@ echo "  Num turns: 2 (Parallel → Refinement)"
 
 # Run the evaluation
 echo ""
-echo "Starting TLDR discussion (2-turn) evaluation..."
-python evals/eval_discussion.py --config "$CONFIG_FILE" "$@"
+echo "Starting arXiv discussion (2-turn) evaluation..."
+python evals/eval_arxiv_discussion.py --config "$CONFIG_FILE" "$@"
 
 # Print footer
 echo ""
 echo "=============================================="
-echo "TLDR Discussion Evaluation Complete"
+echo "arXiv Discussion Evaluation Complete"
 echo "Finished at: $(date)"
 echo "=============================================="

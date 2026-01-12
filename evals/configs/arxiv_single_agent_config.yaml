@@ -1,0 +1,55 @@
+# Single-Agent Evaluation Configuration for arXiv
+# This configuration uses a larger single model vs 2x smaller multi-agent models
+
+# Model configuration
+model:
+  name: "Qwen/Qwen3-4B"  # 4B single model (vs 2x 1.7B for multi-agent)
+  type: "qwen"
+  tokenizer_kwargs:
+    trust_remote_code: true
+  model_kwargs:
+    trust_remote_code: true
+    torch_dtype: "auto"
+
+# Tokenizer settings
+tokenizer:
+  padding_side: "left"
+
+# Dataset configuration
+dataset:
+  name: "OpenMLRL/arXiv_abstract"
+  type: "arxiv"
+  eval_split: "val[:1100]"
+
+# Evaluation settings
+evaluation:
+  num_attempts: 1
+  max_new_tokens: 512  # Both paragraphs need 128-256 tokens each (total ~300-512)
+  temperature: 0.7
+  top_p: 0.9
+  top_k: null
+
+# Output configuration
+output:
+  base_dir: "evals/results"
+  verbose: true
+
+# Metrics to collect
+metrics:
+  - time               # Wall-clock generation time (seconds)
+  - tokens             # Number of tokens produced
+  - score              # Total reward from arxiv_combined_reward (max 3.0)
+  - level1_reward      # Structural (both 128-256 tokens)
+  - level2_reward      # Coordination (length ratio 0.8-1.5x, optimal 1.0-1.3x)
+  - level3_reward      # Vocabulary Diversity (unique words ratio 0.7-1.3x)
+  - level4_reward      # Style (transition words + Jaccard similarity)
+  - length_ratio       # C2/C1 length ratio
+  - unique_words_ratio # Unique words in C2 / C1
+
+# Notes:
+# - Single-agent configuration: One larger model generates both paragraphs
+# - Uses [PARAGRAPH_SPLIT] delimiter to separate background from methodology
+# - 512 max_new_tokens (unlike TLDR's 260) because both paragraphs need 128-256 tokens
+# - Equal-length paragraphs (unlike TLDR's 2-3x ratio)
+# - Prompt asks for TWO equal-length paragraphs with background + methodology focus
+# - Fallback splitting uses ~1.0x ratio if delimiter not found

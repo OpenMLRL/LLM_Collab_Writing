@@ -31,7 +31,7 @@ fi
 echo "✓ Conda environment activated: $CONDA_DEFAULT_ENV"
 
 # Configuration
-CONFIG_FILE="evals/configs/pipeline_config.yaml"
+CONFIG_FILE="evals/configs/tldr_pipeline_config.yaml"
 
 echo ""
 echo "Configuration:"
@@ -44,7 +44,7 @@ mkdir -p "evals/results"
 mkdir -p "evals/logs"
 
 # Run evaluation
-python evals/eval_pipeline.py \
+python evals/eval_tldr_pipeline.py \
     --config "$CONFIG_FILE" \
     --verbose
 

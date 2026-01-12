@@ -1,0 +1,54 @@
+# Pipeline Evaluation Configuration for arXiv
+# This configuration mirrors the training config for fair comparison
+
+# Model configuration
+model:
+  name: "Qwen/Qwen3-1.7B"
+  type: "qwen"
+  tokenizer_kwargs:
+    trust_remote_code: true
+  model_kwargs:
+    trust_remote_code: true
+    torch_dtype: "auto"
+
+# Tokenizer settings
+tokenizer:
+  padding_side: "left"
+
+# Dataset configuration
+dataset:
+  name: "OpenMLRL/arXiv_abstract"
+  type: "arxiv"
+  eval_split: "val[:1100]"
+
+# Evaluation settings
+evaluation:
+  num_attempts: 1
+  max_new_tokens: 256  # Each agent gets 256 tokens (target 128-256)
+  temperature: 0.7
+  top_p: 0.9
+  top_k: null
+
+# Output configuration
+output:
+  base_dir: "evals/results"
+  verbose: true
+
+# Metrics to collect
+metrics:
+  - time_per_agent      # Wall-clock generation time (seconds)
+  - tokens_per_agent    # Number of tokens produced
+  - score               # Total reward from arxiv_combined_reward (max 3.0)
+  - level1_reward       # Structural (both 128-256 tokens)
+  - level2_reward       # Coordination (length ratio 0.8-1.5x, optimal 1.0-1.3x)
+  - level3_reward       # Vocabulary Diversity (unique words ratio 0.7-1.3x)
+  - level4_reward       # Style (transition words + Jaccard similarity)
+  - length_ratio        # C2/C1 length ratio
+  - unique_words_ratio  # Unique words in C2 / C1
+
+# Notes:
+# - Pipeline configuration: Agent 2 receives Agent 1's output in its prompt
+# - Agent 1 (Background): Creates background and motivation content
+# - Agent 2 (Complementary): Creates methodology/implications that builds on Agent 1's output
+# - Key difference from Parallel: Agent 2 sees Agent 1's background section
+# - Time is sum of both agents (sequential execution)

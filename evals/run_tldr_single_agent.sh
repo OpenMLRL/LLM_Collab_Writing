@@ -45,7 +45,7 @@ else
 fi
 
 # Configuration
-CONFIG_FILE="evals/configs/single_agent_config.yaml"
+CONFIG_FILE="evals/configs/tldr_single_agent_config.yaml"
 echo ""
 echo "Configuration:"
 echo "  Config file: $CONFIG_FILE"
@@ -54,7 +54,7 @@ echo "  Max tokens: 260 (matching baseline)"
 # Run the evaluation
 echo ""
 echo "Starting TLDR single-agent evaluation..."
-python evals/eval_single_agent.py --config "$CONFIG_FILE" "$@"
+python evals/eval_tldr_single_agent.py --config "$CONFIG_FILE" "$@"
 
 # Print footer
 echo ""

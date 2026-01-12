@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """
-Pipeline Evaluation Script for TLDR (Summarization)
+Parallel Evaluation Script for arXiv (Abstract Expansion)
 
-This script runs inference-only evaluation for the Pipeline (sequential)
-configuration where Agent 2 receives Agent 1's output in its prompt.
+This script runs inference-only evaluation for the Parallel (naive concatenation)
+configuration where 2 agents generate introduction sections simultaneously with NO communication.
 
-Key Difference from Parallel:
-- Parallel: Agent 2 creates detailed summary independently
-- Pipeline: Agent 2 sees Agent 1's concise summary and expands upon it
+Agent 1 (Background): Creates background and motivation content
+Agent 2 (Complementary): Creates methodology and implications content
 
-Agent 1 (Summary): Creates a concise summary
-Agent 2 (Elaboration): Creates a detailed summary that expands on Agent 1's output
+Key differences from TLDR:
+- Token range: 128-256 per completion (vs 8-256 for TLDR)
+- Length ratio: ~1.0x (equal) instead of 2-3x
+- Vocabulary ratio: ~1.0x (similar) instead of 2x+
 
 Metrics tracked per agent:
 - Time: Wall-clock generation time (seconds)
 - Cost: Number of tokens produced
-- Score: Reward from tldr_combined_reward
+- Score: Reward from arxiv_combined_reward
 
 Output:
 - CSV file with per-sample metrics
@@ -39,57 +40,48 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import rewards.tldr_rewards as tldr_rewards_module
-from loggers.tldr_logger import tldr_combined_reward_logger
-from rewards.tldr_rewards import tldr_combined_reward
+import rewards.arxiv_rewards as arxiv_rewards_module
+from loggers.arxiv_logger import arxiv_combined_reward_logger
+from rewards.arxiv_rewards import arxiv_combined_reward
 
 
-def summary_agent_formatter(example: Dict[str, Any]) -> str:
-    """Formatter for the summary agent (Agent 1) for the TLDR dataset.
-    
-    Same as parallel - Agent 1 prompt is unchanged.
-    """
-    prompt = example.get("prompt", "")
+def background_agent_formatter(example: Dict[str, Any]) -> str:
+    """Formatter for the background agent (Agent 1) for the arXiv dataset."""
+    abstract = example.get("abstract_text", "")
 
-    if not prompt:
-        return "Error: No prompt provided."
+    if not abstract:
+        return "Error: No abstract provided."
 
-    prompt_text = f"""Create a concise summary response to this post.
+    prompt_text = f"""Based on the following scientific abstract, expand content for an introduction section.
 
-Query:
-{prompt}
+Abstract:
+{abstract}
 
 IMPORTANT INSTRUCTIONS:
-- Provide a brief, focused summary in one sentence or a few sentences
-- Be factual and informative
+- There is another agent that will provide methodology and implications
+- You just need to focus on background and motivation
+- Avoid repeating methodology and implications content
 """
 
     return prompt_text
 
 
-def elaboration_pipeline_formatter(example: Dict[str, Any], agent1_output: str) -> str:
-    """Formatter for the elaboration agent (Agent 2) in PIPELINE mode.
-    
-    Key difference from parallel: Agent 2 sees Agent 1's concise summary.
-    """
-    prompt = example.get("prompt", "")
+def complementary_agent_formatter(example: Dict[str, Any]) -> str:
+    """Formatter for the complementary agent (Agent 2) for the arXiv dataset."""
+    abstract = example.get("abstract_text", "")
 
-    if not prompt:
-        return "Error: No prompt provided."
+    if not abstract:
+        return "Error: No abstract provided."
 
-    prompt_text = f"""Create a detailed summary that expands on the following concise summary.
+    prompt_text = f"""Based on the following scientific abstract, expand content for an introduction section.
 
-Original Query:
-{prompt}
-
-Concise Summary (from another agent):
-{agent1_output}
+Abstract:
+{abstract}
 
 IMPORTANT INSTRUCTIONS:
-- Build upon and expand the concise summary above
-- Use more unique words
-- Use transition words to improve flow
-- Make your response 2-3x longer than the concise summary
+- There is another agent that will provide the background and motivation
+- You just need to focus on methodology and implications
+- Avoid repeating background and motivation content
 """
 
     return prompt_text
@@ -144,7 +136,7 @@ def generate_completion(
     return completions, generation_time, token_counts
 
 
-def evaluate_pipeline(
+def evaluate_parallel(
     model_name: str,
     dataset_name: str,
     eval_split: str,
@@ -156,16 +148,14 @@ def evaluate_pipeline(
     verbose: bool = False,
 ) -> Dict[str, Any]:
     """
-    Run pipeline evaluation on TLDR dataset.
-
-    Pipeline: Agent 1 generates first, Agent 2 receives Agent 1's output in prompt.
+    Run parallel evaluation on arXiv dataset.
 
     Args:
         model_name: HuggingFace model name
         dataset_name: Dataset name
         eval_split: Dataset split for evaluation
         output_dir: Directory to save results
-        num_attempts: Number of attempts per problem (TLDR doesn't use Pass@k, so 1 is sufficient)
+        num_attempts: Number of attempts per problem
         max_new_tokens: Maximum tokens to generate
         temperature: Sampling temperature
         top_p: Top-p sampling
@@ -182,8 +172,8 @@ def evaluate_pipeline(
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
-    # Load two separate model instances for agents
-    print("Loading Agent 1 (summary) model...")
+    # Load two separate model instances for parallel agents
+    print("Loading Agent 1 (background) model...")
     model_agent1 = AutoModelForCausalLM.from_pretrained(
         model_name,
         trust_remote_code=True,
@@ -192,7 +182,7 @@ def evaluate_pipeline(
     )
     model_agent1.eval()
 
-    print("Loading Agent 2 (elaboration) model...")
+    print("Loading Agent 2 (complementary) model...")
     model_agent2 = AutoModelForCausalLM.from_pretrained(
         model_name,
         trust_remote_code=True,
@@ -210,7 +200,7 @@ def evaluate_pipeline(
     all_results = []
 
     # Suppress verbose output from reward function
-    tldr_rewards_module.VERBOSE = False
+    arxiv_rewards_module.VERBOSE = False
 
     # Process each problem
     for prob_idx, item in enumerate(dataset):
@@ -218,15 +208,16 @@ def evaluate_pipeline(
             print(f"\n{'='*60}")
             print(f"Problem {prob_idx + 1}/{len(dataset)}")
 
-        # Format prompt for Agent 1 (same as parallel)
-        prompt_agent1 = summary_agent_formatter(item)
+        # Format prompts for both agents
+        prompt_agent1 = background_agent_formatter(item)
+        prompt_agent2 = complementary_agent_formatter(item)
 
         # Generate num_attempts attempts for this problem
         for attempt_idx in range(num_attempts):
             if verbose:
                 print(f"  Attempt {attempt_idx + 1}/{num_attempts}")
 
-            # STEP 1: Agent 1 generates concise summary FIRST
+            # Agent 1: Generate background/motivation
             completions1, time1, tokens1 = generate_completion(
                 model_agent1,
                 tokenizer,
@@ -236,13 +227,10 @@ def evaluate_pipeline(
                 top_p=top_p,
                 num_return_sequences=1,
             )
-            summary_completion = completions1[0]
-            summary_tokens = tokens1[0]
+            background_completion = completions1[0]
+            background_tokens = tokens1[0]
 
-            # STEP 2: Agent 2 receives Agent 1's output in its prompt (PIPELINE)
-            # This is the key difference from parallel!
-            prompt_agent2 = elaboration_pipeline_formatter(item, summary_completion)
-            
+            # Agent 2: Generate methodology/implications (in parallel, no communication)
             completions2, time2, tokens2 = generate_completion(
                 model_agent2,
                 tokenizer,
@@ -252,33 +240,35 @@ def evaluate_pipeline(
                 top_p=top_p,
                 num_return_sequences=1,
             )
-            elaboration_completion = completions2[0]
-            elaboration_tokens = tokens2[0]
+            complementary_completion = completions2[0]
+            complementary_tokens = tokens2[0]
 
             # Compute reward
-            rewards = tldr_combined_reward(
-                [summary_completion],
-                [elaboration_completion],
+            rewards = arxiv_combined_reward(
+                [background_completion],
+                [complementary_completion],
             )
             score = rewards[0] if rewards else 0.0
 
             # Get detailed metrics using logger
-            metrics = tldr_combined_reward_logger(
-                [summary_completion],
-                [elaboration_completion],
+            metrics = arxiv_combined_reward_logger(
+                [background_completion],
+                [complementary_completion],
             )
             metric = metrics[0] if metrics else {}
 
             # Store attempt result
+            # NOTE: For parallel execution, total_time = max(time1, time2) since agents run simultaneously
+            parallel_time = max(time1, time2)
             attempt_result = {
                 "problem_id": prob_idx,
                 "attempt_id": attempt_idx,
                 "agent1_time_s": round(time1, 4),
-                "agent1_tokens": summary_tokens,
+                "agent1_tokens": background_tokens,
                 "agent2_time_s": round(time2, 4),
-                "agent2_tokens": elaboration_tokens,
-                "total_time_s": round(time1 + time2, 4),
-                "total_tokens": summary_tokens + elaboration_tokens,
+                "agent2_tokens": complementary_tokens,
+                "total_time_s": round(parallel_time, 4),  # max() for parallel
+                "total_tokens": background_tokens + complementary_tokens,
                 "score": round(score, 4),
                 "level1_reward": round(metric.get("level1_reward", 0.0), 4),
                 "level2_reward": round(metric.get("level2_reward", 0.0), 4),
@@ -290,8 +280,8 @@ def evaluate_pipeline(
             all_results.append(attempt_result)
 
             if verbose:
-                print(f"    Time: {time1:.2f}s + {time2:.2f}s = {time1+time2:.2f}s")
-                print(f"    Tokens: {summary_tokens} + {elaboration_tokens} = {summary_tokens+elaboration_tokens}")
+                print(f"    Time: max({time1:.2f}s, {time2:.2f}s) = {parallel_time:.2f}s")
+                print(f"    Tokens: {background_tokens} + {complementary_tokens} = {background_tokens+complementary_tokens}")
                 print(f"    Score: {score:.2f}")
 
     # Compute aggregated statistics
@@ -318,7 +308,7 @@ def evaluate_pipeline(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Save CSV
-    csv_path = os.path.join(output_dir, f"pipeline_results_{timestamp}.csv")
+    csv_path = os.path.join(output_dir, f"arxiv_parallel_results_{timestamp}.csv")
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=all_results[0].keys())
         writer.writeheader()
@@ -327,8 +317,8 @@ def evaluate_pipeline(
 
     # Save JSON summary
     summary = {
-        "config": "pipeline",
-        "domain": "tldr",
+        "config": "parallel",
+        "domain": "arxiv",
         "model": model_name,
         "dataset": dataset_name,
         "eval_split": eval_split,
@@ -343,14 +333,14 @@ def evaluate_pipeline(
         "aggregated": {k: round(v, 4) for k, v in aggregated.items()},
     }
 
-    json_path = os.path.join(output_dir, f"pipeline_summary_{timestamp}.json")
+    json_path = os.path.join(output_dir, f"arxiv_parallel_summary_{timestamp}.json")
     with open(json_path, "w") as f:
         json.dump(summary, f, indent=2)
     print(f"JSON summary saved to: {json_path}")
 
     # Print summary
     print(f"\n{'='*60}")
-    print("PIPELINE EVALUATION SUMMARY (TLDR)")
+    print("PARALLEL EVALUATION SUMMARY (arXiv)")
     print(f"{'='*60}")
     print(f"Model: {model_name}")
     print(f"Problems evaluated: {num_problems}")
@@ -358,7 +348,7 @@ def evaluate_pipeline(
     print(f"\nAggregated Metrics:")
     print(f"  Avg Time (Agent 1): {aggregated['avg_time_agent1']:.2f}s")
     print(f"  Avg Time (Agent 2): {aggregated['avg_time_agent2']:.2f}s")
-    print(f"  Avg Time (Total):   {aggregated['avg_time_total']:.2f}s")
+    print(f"  Avg Time (Total = max): {aggregated['avg_time_total']:.2f}s")
     print(f"  Avg Tokens (Agent 1): {aggregated['avg_tokens_agent1']:.1f}")
     print(f"  Avg Tokens (Agent 2): {aggregated['avg_tokens_agent2']:.1f}")
     print(f"  Avg Tokens (Total):   {aggregated['avg_tokens_total']:.1f}")
@@ -381,12 +371,12 @@ def load_config(config_path: str) -> Dict[str, Any]:
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Pipeline evaluation for TLDR (Summarization)"
+        description="Parallel evaluation for arXiv (Abstract Expansion)"
     )
     parser.add_argument(
         "--config",
         type=str,
-        default="evals/configs/pipeline_config.yaml",
+        default="evals/configs/arxiv_parallel_config.yaml",
         help="Path to YAML config file",
     )
     parser.add_argument(
@@ -454,8 +444,8 @@ def parse_args():
     # Merge config with command-line args (args take precedence)
     final_config = {
         "model_name": args.model_name or config.get("model", {}).get("name", "Qwen/Qwen3-1.7B"),
-        "dataset_name": args.dataset_name or config.get("dataset", {}).get("name", "trl-lib/tldr"),
-        "eval_split": args.eval_split or config.get("dataset", {}).get("eval_split", "test[:100]"),
+        "dataset_name": args.dataset_name or config.get("dataset", {}).get("name", "OpenMLRL/arXiv_abstract"),
+        "eval_split": args.eval_split or config.get("dataset", {}).get("eval_split", "val[:1100]"),
         "output_dir": args.output_dir or config.get("output", {}).get("base_dir", "evals/results"),
         "num_attempts": args.num_attempts or config.get("evaluation", {}).get("num_attempts", 1),
         "max_new_tokens": args.max_new_tokens or config.get("evaluation", {}).get("max_new_tokens", 256),
@@ -468,10 +458,9 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    print("Starting TLDR pipeline evaluation...")
     args = parse_args()
 
-    evaluate_pipeline(
+    evaluate_parallel(
         model_name=args.model_name,
         dataset_name=args.dataset_name,
         eval_split=args.eval_split,
