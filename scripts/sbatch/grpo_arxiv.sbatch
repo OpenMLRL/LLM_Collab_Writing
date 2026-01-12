@@ -8,13 +8,13 @@
 #SBATCH --mem=100g
 #SBATCH --time=12:00:00
 #SBATCH --job-name=grpo_arxiv
-#SBATCH --output=logs/%x.%j.out
-#SBATCH --error=logs/%x.%j.out
+#SBATCH --output=/projects/bfzm/%u/src/LLM_Collab_Writing/logs/%x.%j.out
+#SBATCH --error=/projects/bfzm/%u/src/LLM_Collab_Writing/logs/%x.%j.out
 
-cd $SLURM_SUBMIT_DIR    # ensure we start where sbatch was called
+cd /projects/bfzm/$USER/src    # Run from parent directory to access CoMLRL
 
 # Create logs directory if it doesn't exist
-mkdir -p logs
+mkdir -p LLM_Collab_Writing/logs
 
 # load env
 source ~/.bashrc
@@ -23,10 +23,11 @@ conda activate comlrl
 
 # Set environment variables
 export PYTHONUNBUFFERED=1
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export PYTHONPATH="${PYTHONPATH}:$(pwd)/CoMLRL:$(pwd)/LLM_Collab_Writing"
 export HF_HOME="/work/hdd/bfzm/$USER/hf_cache"
 
 # run script
+cd LLM_Collab_Writing
 python3 -u train_grpo.py \
     --config configs/grpo_arxiv_config.yaml \
     --override wandb.entity="ryanamiri05-northeastern-university" \
