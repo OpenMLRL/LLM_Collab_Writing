@@ -1,6 +1,6 @@
 
 model:
-  name: "Qwen/Qwen3-1.7B"
+  name: "Qwen/Qwen3-4B"
   type: "qwen"
   temperature: 0.7
   top_p: 0.9
@@ -34,7 +34,7 @@ grpo:
   eval_interval: 4
   eval_num_samples: 4
   num_generations: 4
-  max_new_tokens: 256
+  max_new_tokens: 260
   top_k: null
 
 reward_processor:

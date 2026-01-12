@@ -30,21 +30,21 @@ def arxiv_single_formatter(example: Dict[str, Any]) -> str:
     if not abstract:
         return "Error: No abstract provided."
 
-    return f"""Please provide an expanded introduction of this abstract text in exactly two paragraphs with SAME LENGTH.
+    return f"""Based on the following scientific abstract, expand content for an introduction section in exactly two paragraphs:
 
 {abstract}
 
 Instructions:
-- First paragraph: Provide the background and motivation for this research, include as many categories of transition words as possible to improve flow.
-- Second paragraph: Provide the framework, method, contribution, and the implications of this research, using same number of vocabulary words as the first paragraph, include as many categories of transition words as possible to improve flow, maintaining a consistent style
+- First paragraph: Focus on background and motivation
+- Second paragraph: Focus on methodology and implications
+- Both paragraphs should be roughly EQUAL in length (similar word count)
 
-IMPORTANT: Separate the two paragraphs with exactly this delimiter: [PARAGRAPH_SPLIT]
+IMPORTANT REQUIREMENTS - FOLLOW EXACTLY:
+- Each paragraph should be between 128 and 256 tokens
+- Use EXACTLY this delimiter between paragraphs: [PARAGRAPH_SPLIT]
 
-FORMAT:
-Paragraph 1: ...
-[PARAGRAPH_SPLIT]
-Paragraph 2: ...
-"""
+Introduction:
+Paragraph 1:"""
 
 
 def tldr_single_formatter(example: Dict[str, Any]) -> str:
@@ -65,11 +65,8 @@ IMPORTANT REQUIREMENTS - FOLLOW EXACTLY:
 - No paragraph should be less than 10 tokens or more than 200 tokens
 - Use EXACTLY this delimiter between paragraphs: [PARAGRAPH_SPLIT]
 
-FORMAT:
-Paragraph 1: ...
-[PARAGRAPH_SPLIT]
-Paragraph 2: ...
-"""
+Summary:
+Paragraph 1:"""
 
 
 def split_response_into_paragraphs(response: str) -> Tuple[str, str]:
