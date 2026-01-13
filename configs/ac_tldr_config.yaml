@@ -40,6 +40,7 @@ ac:
   top_k: null
   num_agents: 1
   critic_model: null
+  use_separate_critic: false  # Share actor model for critic to save VRAM
   eval_interval: 20
   eval_num_samples: 4
   logging_steps: 100
