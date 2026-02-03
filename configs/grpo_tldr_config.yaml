@@ -31,6 +31,7 @@ grpo:
   learning_rate: 5.0e-6
   logging_steps: 400
   num_generations: 4
+  joint_mode: aligned
   max_new_tokens: 256
   top_k: null
   eval_interval: 4
