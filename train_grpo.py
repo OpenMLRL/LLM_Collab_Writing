@@ -18,12 +18,6 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils.reward_processor import RewardProcessors
 from comlrl.trainers.magrpo import MAGRPOConfig, MAGRPOTrainer
-
-
-# -----------------------------------------------------------------------------
-# Prompt formatters and helpers
-# -----------------------------------------------------------------------------
-
 def arxiv_single_formatter(example: Dict[str, Any]) -> str:
     """Prompt the single agent to produce two coordinated paragraphs for arXiv."""
     abstract = example.get("abstract_text", "")
@@ -220,9 +214,8 @@ def main():
 
     grpo_args = MAGRPOConfig(
         output_dir=output_dir,
-        num_agents=1,
+        num_turns=1,
         num_train_epochs=grpo_cfg.get("num_train_epochs", 1),
-        per_device_train_batch_size=grpo_cfg.get("per_device_train_batch_size", 1),
         learning_rate=grpo_cfg.get("learning_rate", 5e-6),
         logging_steps=grpo_cfg.get("logging_steps", 10),
         save_steps=grpo_cfg.get("save_steps", 100),
@@ -231,23 +224,15 @@ def main():
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
+        num_agents=1,
         eval_interval=grpo_cfg.get("eval_interval", 4),
         eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
-        num_turns=1,
     )
 
-    # Propagate verbosity to reward modules
-    try:
-        import rewards.arxiv_rewards as arxiv_rewards
-        arxiv_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-    try:
-        import rewards.tldr_rewards as tldr_rewards
-        tldr_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-
+    import rewards.arxiv_rewards as arxiv_rewards
+    arxiv_rewards.VERBOSE = bool(output_verbose)
+    import rewards.tldr_rewards as tldr_rewards
+    tldr_rewards.VERBOSE = bool(output_verbose)
     formatter = get_formatter(dataset_type)
     reward_func = make_reward_function(dataset_type)
 
@@ -309,6 +294,7 @@ def main():
         trainer_kwargs["reward_processor"] = reward_processor
 
     trainer = MAGRPOTrainer(**trainer_kwargs)
+    trainer.verbose = bool(output_verbose)
     trainer.train()
 
     if config.get("output.save_final_model", True):

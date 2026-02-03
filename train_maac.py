@@ -253,17 +253,10 @@ def main() -> None:
     )
 
     # Propagate verbosity to reward modules
-    try:
-        import rewards.arxiv_rewards as arxiv_rewards
-        arxiv_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-    try:
-        import rewards.tldr_rewards as tldr_rewards
-        tldr_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-
+    import rewards.arxiv_rewards as arxiv_rewards
+    arxiv_rewards.VERBOSE = bool(output_verbose)
+    import rewards.tldr_rewards as tldr_rewards
+    tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
 
@@ -292,6 +285,8 @@ def main() -> None:
         external_transition=None,
         args=MAACConfig(
             output_dir=os.path.join(output_dir, "maac"),
+            num_turns=1,
+            num_train_epochs=maac_cfg.get("num_train_epochs", 1),
             actor_learning_rate=maac_cfg.get("actor_learning_rate", 5e-6),
             critic_learning_rate=maac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=maac_cfg.get("value_loss_coef", 0.6),
@@ -301,12 +296,9 @@ def main() -> None:
             top_p=top_p,
             top_k=top_k,
             do_sample=use_sampling,
-            num_train_epochs=maac_cfg.get("num_train_epochs", 1),
-            per_device_train_batch_size=maac_cfg.get("per_device_train_batch_size", 1),
             num_agents=num_agents,
-            num_return_sequences=1,
+            num_generations=maac_cfg.get("num_generations", 1),
             critic_model_name_or_path=critic_model,
-            num_turns=1,
             discount=maac_cfg.get("discount", 0.9),
             critic_type=maac_cfg.get("critic_type", "v"),
             eval_interval=maac_cfg.get("eval_interval", 4),
@@ -324,6 +316,7 @@ def main() -> None:
         },
         wandb_config=_build_wandb_config(config, model_name, dataset_type),
     )
+    trainer.verbose = bool(output_verbose)
     trainer.train()
 
     if config.get("output.save_final_model", True):

@@ -25,12 +25,6 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils.reward_processor import RewardProcessors
 from comlrl.trainers.magrpo import MAGRPOConfig, MAGRPOTrainer
-
-
-# -----------------------------------------------------------------------------
-# Prompt formatters
-# -----------------------------------------------------------------------------
-
 def background_agent_formatter(example: Dict[str, Any]) -> str:
     """Formatter for the background agent (Agent 1) for the arXiv dataset."""
     abstract = example.get("abstract_text", "")
@@ -130,12 +124,6 @@ def get_formatters(dataset_type: str) -> List[Callable[[Dict[str, Any]], str]]:
         raise ValueError(f"Unsupported dataset type '{dataset_type}' for writing tasks.")
 
     return formatters_map[dataset_key]
-
-
-# -----------------------------------------------------------------------------
-# Evaluation helpers
-# -----------------------------------------------------------------------------
-
 def _adapt_eval_logger(
     base_logger: Callable[[List[str], List[str]], List[Dict[str, Any]]]
 ) -> Callable[..., List[Dict[str, Any]]]:
@@ -170,7 +158,6 @@ def _adapt_eval_aggregator(
     """Wrap aggregators so they match the MAGRPO signature (accepting num_turns)."""
 
     def aggregator(metrics: List[Dict[str, Any]], num_turns: int = 1) -> Dict[str, float]:
-        # num_turns unused for single-turn writing tasks
         return base_aggregator(metrics)
 
     return aggregator
@@ -254,10 +241,6 @@ def main():
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
-
-    # ------------------------------------------------------------------
-    # Model and tokenizer setup
-    # ------------------------------------------------------------------
     model_config = config.get_model_config()
     model_name = model_config.name
 
@@ -273,7 +256,6 @@ def main():
     train_split = config.get("dataset.train_split")
     eval_split = config.get("dataset.eval_split")
 
-    # Load datasets (leave errors to bubble up for clarity)
     train_dataset = load_dataset(dataset_name, split=train_split)
     eval_dataset = load_dataset(dataset_name, split=eval_split)
 
@@ -304,10 +286,6 @@ def main():
         )
         for _ in range(num_agents)
     ]
-
-    # ------------------------------------------------------------------
-    # Training configuration
-    # ------------------------------------------------------------------
     magrpo_cfg = config.get_section("magrpo")
     num_turns_cfg = magrpo_cfg.get("num_turns")
     if num_turns_cfg is not None and int(num_turns_cfg) != 1:
@@ -321,11 +299,8 @@ def main():
 
     magrpo_args = MAGRPOConfig(
         output_dir=output_dir,
-        num_agents=num_agents,
+        num_turns=1,
         num_train_epochs=magrpo_cfg.get("num_train_epochs", 1),
-        per_device_train_batch_size=magrpo_cfg.get(
-            "per_device_train_batch_size", 1
-        ),
         learning_rate=magrpo_cfg.get("learning_rate", 5e-6),
         logging_steps=magrpo_cfg.get("logging_steps", 10),
         save_steps=magrpo_cfg.get("save_steps", 100),
@@ -333,24 +308,16 @@ def main():
         max_new_tokens=magrpo_cfg.get("max_new_tokens", 256),
         temperature=temperature,
         top_p=top_p,
+        num_agents=num_agents,
         rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 2),
         eval_interval=magrpo_cfg.get("eval_interval", 4),
         eval_num_samples=magrpo_cfg.get("eval_num_samples", 4),
-        num_turns=1,
     )
 
-    # Propagate verbosity to reward modules
-    try:
-        import rewards.arxiv_rewards as arxiv_rewards
-        arxiv_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-    try:
-        import rewards.tldr_rewards as tldr_rewards
-        tldr_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-
+    import rewards.arxiv_rewards as arxiv_rewards
+    arxiv_rewards.VERBOSE = bool(output_verbose)
+    import rewards.tldr_rewards as tldr_rewards
+    tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
 
@@ -415,6 +382,7 @@ def main():
         trainer_kwargs["reward_processor"] = reward_processor
 
     trainer = MAGRPOTrainer(**trainer_kwargs)
+    trainer.verbose = bool(output_verbose)
     trainer.train()
 
     if config.get("output.save_final_model", True):

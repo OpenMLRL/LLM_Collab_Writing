@@ -29,7 +29,6 @@ output:
 iac:
   num_turns: 1
   num_train_epochs: 20
-  per_device_train_batch_size: 1
   actor_learning_rate: 5.0e-6
   critic_learning_rate: 5.0e-6
   value_loss_coef: 0.6
