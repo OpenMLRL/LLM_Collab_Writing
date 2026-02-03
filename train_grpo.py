@@ -213,12 +213,10 @@ def main():
     top_k = grpo_cfg.get("top_k")
 
     grpo_args = MAGRPOConfig(
-        output_dir=output_dir,
         num_turns=1,
         num_train_epochs=grpo_cfg.get("num_train_epochs", 1),
         learning_rate=grpo_cfg.get("learning_rate", 5e-6),
         logging_steps=grpo_cfg.get("logging_steps", 10),
-        save_steps=grpo_cfg.get("save_steps", 100),
         num_generations=grpo_cfg.get("num_generations", 4),
         max_new_tokens=grpo_cfg.get("max_new_tokens", 512),
         temperature=temperature,
@@ -227,6 +225,7 @@ def main():
         num_agents=1,
         eval_interval=grpo_cfg.get("eval_interval", 4),
         eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
+        eval_batch_size=grpo_cfg.get("eval_batch_size", 1),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
@@ -240,6 +239,8 @@ def main():
     model_short_name = model_name.split("/")[-1].lower()
     if "name" in wandb_section:
         wandb_name = wandb_section["name"]
+    elif "run_name" in wandb_section:
+        wandb_name = wandb_section["run_name"]
     else:
         wandb_name = f"grpo_{dataset_type}_{model_short_name}"
 

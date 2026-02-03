@@ -274,14 +274,12 @@ def main() -> None:
         metrics_callback=None,
         external_transition=None,
         args=IACConfig(
-            output_dir=os.path.join(output_dir, "ac"),
             num_turns=1,
             num_train_epochs=ac_cfg.get("num_train_epochs", 1),
             actor_learning_rate=ac_cfg.get("actor_learning_rate", 5e-6),
             critic_learning_rate=ac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=ac_cfg.get("value_loss_coef", 0.6),
             value_clip_range=ac_cfg.get("value_clip_range", 0.2),
-            entropy_coef=ac_cfg.get("entropy_coef", 0.0),
             rollout_buffer_size=ac_cfg.get("rollout_buffer_size", 4),
             max_new_tokens=ac_cfg.get("max_new_tokens", 256),
             temperature=temperature,
@@ -297,6 +295,7 @@ def main() -> None:
             discount=ac_cfg.get("discount", 0.9),
             eval_interval=ac_cfg.get("eval_interval", 4),
             eval_num_samples=ac_cfg.get("eval_num_samples", 4),
+            eval_batch_size=ac_cfg.get("eval_batch_size", 1),
             logging_steps=ac_cfg.get("logging_steps", 1),
         ),
         train_dataset=train_dataset,
@@ -341,6 +340,8 @@ def _build_wandb_config(
 
     if "name" in wandb_section:
         wandb_name = wandb_section["name"]
+    elif "run_name" in wandb_section:
+        wandb_name = wandb_section["run_name"]
     else:
         wandb_name = f"ac_{dataset_type}_{model_short_name}"
 

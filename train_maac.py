@@ -284,7 +284,6 @@ def main() -> None:
         metrics_callback=None,
         external_transition=None,
         args=MAACConfig(
-            output_dir=os.path.join(output_dir, "maac"),
             num_turns=1,
             num_train_epochs=maac_cfg.get("num_train_epochs", 1),
             actor_learning_rate=maac_cfg.get("actor_learning_rate", 5e-6),
@@ -303,6 +302,7 @@ def main() -> None:
             critic_type=maac_cfg.get("critic_type", "v"),
             eval_interval=maac_cfg.get("eval_interval", 4),
             eval_num_samples=maac_cfg.get("eval_num_samples", 4),
+            eval_batch_size=maac_cfg.get("eval_batch_size", 1),
             logging_steps=maac_cfg.get("logging_steps", 1),
         ),
         train_dataset=train_dataset,
@@ -347,6 +347,8 @@ def _build_wandb_config(
 
     if "name" in wandb_section:
         wandb_name = wandb_section["name"]
+    elif "run_name" in wandb_section:
+        wandb_name = wandb_section["run_name"]
     else:
         wandb_name = f"maac_{dataset_type}_{model_short_name}"
 

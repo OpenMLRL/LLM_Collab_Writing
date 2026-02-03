@@ -296,22 +296,23 @@ def main():
 
     temperature = magrpo_cfg.get("temperature", model_config.temperature)
     top_p = magrpo_cfg.get("top_p", model_config.top_p)
+    top_k = magrpo_cfg.get("top_k")
 
     magrpo_args = MAGRPOConfig(
-        output_dir=output_dir,
         num_turns=1,
         num_train_epochs=magrpo_cfg.get("num_train_epochs", 1),
         learning_rate=magrpo_cfg.get("learning_rate", 5e-6),
         logging_steps=magrpo_cfg.get("logging_steps", 10),
-        save_steps=magrpo_cfg.get("save_steps", 100),
         num_generations=magrpo_cfg.get("num_generations", 4),
         max_new_tokens=magrpo_cfg.get("max_new_tokens", 256),
         temperature=temperature,
         top_p=top_p,
+        top_k=top_k,
         num_agents=num_agents,
         rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 2),
         eval_interval=magrpo_cfg.get("eval_interval", 4),
         eval_num_samples=magrpo_cfg.get("eval_num_samples", 4),
+        eval_batch_size=magrpo_cfg.get("eval_batch_size", 1),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
@@ -325,6 +326,8 @@ def main():
     model_short_name = model_name.split("/")[-1].lower()
     if "name" in wandb_section:
         wandb_name = wandb_section["name"]
+    elif "run_name" in wandb_section:
+        wandb_name = wandb_section["run_name"]
     else:
         wandb_name = f"magrpo_{dataset_type}_{model_short_name}"
 

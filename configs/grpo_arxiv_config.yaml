@@ -37,6 +37,7 @@ grpo:
 
   eval_interval: 4
   eval_num_samples: 4
+  eval_batch_size: 1
 reward_processor:
   enabled: true
   scale_factor: 1.0

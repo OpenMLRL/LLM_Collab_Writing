@@ -27,7 +27,9 @@ output:
   save_path: "./magrpo_output/iac_arxiv"
 
 iac:
+  num_agents: 2
   num_turns: 1
+  critic_model: null
   num_train_epochs: 20
   actor_learning_rate: 5.0e-6
   critic_learning_rate: 5.0e-6
@@ -38,10 +40,9 @@ iac:
   temperature: 0.7
   top_p: 0.9
   top_k: null
-  num_agents: 2
-  critic_model: null
   eval_interval: 80
   eval_num_samples: 4
+  eval_batch_size: 1
   logging_steps: 10
 
 reward_processor:
