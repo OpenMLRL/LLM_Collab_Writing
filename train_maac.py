@@ -23,9 +23,7 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 
 
-# -----------------------------------------------------------------------------
 # Prompt formatters
-# -----------------------------------------------------------------------------
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
     """Formatter for the background agent (Agent 1) for the arXiv dataset."""
