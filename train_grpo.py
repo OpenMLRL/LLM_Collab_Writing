@@ -236,13 +236,12 @@ def main():
     reward_func = make_reward_function(dataset_type)
 
     wandb_section = config.get_section("wandb")
-    model_short_name = model_name.split("/")[-1].lower()
     if "name" in wandb_section:
         wandb_name = wandb_section["name"]
     elif "run_name" in wandb_section:
         wandb_name = wandb_section["run_name"]
     else:
-        wandb_name = f"grpo_{dataset_type}_{model_short_name}"
+        wandb_name = f"{dataset_type}-grpo"
 
     output_section = dict(config.get_section("output") or {})
     if "verbose" not in output_section:

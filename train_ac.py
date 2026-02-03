@@ -336,14 +336,12 @@ def _build_wandb_config(
     wandb_section = config.get_section("wandb")
     ac_section = config.get_section("ac")
     output_section = dict(config.get_section("output") or {})
-    model_short_name = model_name.split("/")[-1].lower()
-
     if "name" in wandb_section:
         wandb_name = wandb_section["name"]
     elif "run_name" in wandb_section:
         wandb_name = wandb_section["run_name"]
     else:
-        wandb_name = f"ac_{dataset_type}_{model_short_name}"
+        wandb_name = f"{dataset_type}-ac"
 
     tags = wandb_section.get("tags", ["ac", dataset_type, "single-agent", "turns_1"])
 
