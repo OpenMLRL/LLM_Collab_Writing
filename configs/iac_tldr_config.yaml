@@ -40,10 +40,10 @@ iac:
   temperature: 0.7
   top_p: 0.9
   top_k: null
-  eval_interval: 80
+  eval_interval: 20
   eval_num_samples: 4
   eval_batch_size: 1
-  logging_steps: 10
+  logging_steps: 50
 
 reward_processor:
   enabled: true
