@@ -134,9 +134,7 @@ def tldr_combined_reward_logger(completions1, completions2):
     for i, (c1, c2) in enumerate(zip(completions1, completions2)):
         metrics = {}
 
-        # ================================================================
         # BASIC METRICS
-        # ================================================================
 
         # Token counts
         metrics["completions1_num_tokens"] = count_tokens(c1)
@@ -154,9 +152,7 @@ def tldr_combined_reward_logger(completions1, completions2):
             c2, exclude_stopwords=True
         )
 
-        # ================================================================
         # LEVEL 1: STRUCTURAL REWARD
-        # ================================================================
 
         c1_in_range = 8 <= metrics["completions1_num_tokens"] <= 256
         c2_in_range = 8 <= metrics["completions2_num_tokens"] <= 256
@@ -165,9 +161,7 @@ def tldr_combined_reward_logger(completions1, completions2):
         metrics["c1_in_token_range"] = c1_in_range
         metrics["c2_in_token_range"] = c2_in_range
 
-        # ================================================================
         # LEVEL 2: COORDINATION REWARD (ALWAYS CALCULATED)
-        # ================================================================
 
         if metrics["completions1_length"] == 0:
             metrics["length_ratio"] = 0.0
@@ -188,9 +182,7 @@ def tldr_combined_reward_logger(completions1, completions2):
             else:
                 metrics["level2_reward"] = 0.0
 
-        # ================================================================
         # LEVEL 3: VOCABULARY DIVERSITY REWARD (ALWAYS CALCULATED)
-        # ================================================================
 
         if metrics["completions1_num_unique_words"] == 0:
             metrics["unique_words_ratio"] = 0.0
@@ -212,9 +204,7 @@ def tldr_combined_reward_logger(completions1, completions2):
             else:
                 metrics["level3_reward"] = 0.0
 
-        # ================================================================
         # LEVEL 4: STYLE COMPONENTS (ALWAYS CALCULATED)
-        # ================================================================
 
         # Jaccard similarity
         metrics["jaccard_score"] = calculate_jaccard_similarity(c1, c2)
@@ -249,9 +239,7 @@ def tldr_combined_reward_logger(completions1, completions2):
             metrics["jaccard_reward"] + metrics["transition_reward"]
         )
 
-        # ================================================================
         # FINAL REWARDS (BOTH GATED AND UNGATED)
-        # ================================================================
 
         # Gated total reward (as per original function logic)
         gated_reward = 0.0
