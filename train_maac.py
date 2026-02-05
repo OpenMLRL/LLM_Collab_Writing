@@ -17,7 +17,7 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 
 from config import Config, add_config_args, parse_overrides
-from comlrl.trainers.maac import MAACConfig, MAACTrainer
+from comlrl.trainers.actor_critic import MAACConfig, MAACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward

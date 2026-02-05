@@ -24,7 +24,7 @@ from loggers.tldr_logger import (
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils.reward_processor import RewardProcessors
-from comlrl.trainers.magrpo import MAGRPOConfig, MAGRPOTrainer
+from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
 def background_agent_formatter(example: Dict[str, Any]) -> str:
     """Formatter for the background agent (Agent 1) for the arXiv dataset."""
     abstract = example.get("abstract_text", "")
