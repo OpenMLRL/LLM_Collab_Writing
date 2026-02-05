@@ -210,9 +210,7 @@ def arxiv_combined_reward(completions1, completions2):
         unique_words2 = count_unique_words(c2)
         unique_words_ratio = unique_words2 / unique_words1 if unique_words1 > 0 else 0.0
 
-        # ================================================================
         # LEVEL 1: STRUCTURAL REQUIREMENTS (INDIVIDUAL TOKEN COUNTS)
-        # ================================================================
         print("\n📋 LEVEL 1: STRUCTURAL REQUIREMENTS")
         print("-" * 50)
         print(f"📊 Completion 1 token count: {token_count1}")
@@ -241,9 +239,7 @@ def arxiv_combined_reward(completions1, completions2):
             rewards.append(reward)
             continue
 
-        # ================================================================
         # LEVEL 2: COORDINATION REQUIREMENTS (LENGTH RATIO) - LENIENT
-        # ================================================================
         print("\n⚙️  LEVEL 2: COORDINATION REQUIREMENTS (LENIENT)")
         print("-" * 50)
 
@@ -304,9 +300,7 @@ def arxiv_combined_reward(completions1, completions2):
             rewards.append(reward)
             continue
 
-        # ================================================================
         # LEVEL 3: VOCABULARY DIVERSITY (UNIQUE WORDS RATIO) - STRICTER
-        # ================================================================
         print("\n🔤 LEVEL 3: VOCABULARY DIVERSITY (STRICTER)")
         print("-" * 50)
 
@@ -373,9 +367,7 @@ def arxiv_combined_reward(completions1, completions2):
             rewards.append(reward)
             continue
 
-        # ================================================================
         # LEVEL 4: STYLE REWARD (TRANSITION WORDS + JACCARD SIMILARITY)
-        # ================================================================
         print("\n🎨 LEVEL 4: STYLE REWARD")
         print("-" * 50)
 

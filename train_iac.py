@@ -17,15 +17,13 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 
 from config import Config, add_config_args, parse_overrides
-from comlrl.trainers.iac import IACConfig, IACTrainer
+from comlrl.trainers.actor_critic import IACConfig, IACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 
 
-# -----------------------------------------------------------------------------
 # Prompt formatters
-# -----------------------------------------------------------------------------
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
     """Formatter for the background agent (Agent 1) for the arXiv dataset."""
@@ -254,17 +252,10 @@ def main() -> None:
     )
 
     # Propagate verbosity to reward modules
-    try:
-        import rewards.arxiv_rewards as arxiv_rewards
-        arxiv_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-    try:
-        import rewards.tldr_rewards as tldr_rewards
-        tldr_rewards.VERBOSE = bool(output_verbose)
-    except Exception:
-        pass
-
+    import rewards.arxiv_rewards as arxiv_rewards
+    arxiv_rewards.VERBOSE = bool(output_verbose)
+    import rewards.tldr_rewards as tldr_rewards
+    tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
 
@@ -292,30 +283,28 @@ def main() -> None:
         metrics_callback=None,
         external_transition=None,
         args=IACConfig(
-            output_dir=os.path.join(output_dir, "iac"),
+            num_turns=1,
+            num_train_epochs=iac_cfg.get("num_train_epochs", 1),
             actor_learning_rate=iac_cfg.get("actor_learning_rate", 5e-6),
             critic_learning_rate=iac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=iac_cfg.get("value_loss_coef", 0.6),
+            value_clip_range=iac_cfg.get("value_clip_range", 0.2),
             rollout_buffer_size=iac_cfg.get("rollout_buffer_size", 4),
             max_new_tokens=iac_cfg.get("max_new_tokens", 256),
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
             do_sample=use_sampling,
-            num_train_epochs=iac_cfg.get("num_train_epochs", 1),
-            per_device_train_batch_size=iac_cfg.get("per_device_train_batch_size", 1),
             num_agents=num_agents,
-            num_return_sequences=iac_cfg.get("num_return_sequences", 1),
+            num_generations=iac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,
             critic_model_name_or_path=critic_model,
             critic_value_head_hidden_dim=iac_cfg.get("critic_value_head_hidden_dim"),
             value_head_hidden_dim=iac_cfg.get("value_head_hidden_dim"),
-            value_clip_range=iac_cfg.get("value_clip_range", 0.2),
-            entropy_coef=iac_cfg.get("entropy_coef", 0.0),
-            num_turns=1,
             discount=iac_cfg.get("discount", 0.9),
             eval_interval=iac_cfg.get("eval_interval", 4),
             eval_num_samples=iac_cfg.get("eval_num_samples", 4),
+            eval_batch_size=iac_cfg.get("eval_batch_size", 1),
             logging_steps=iac_cfg.get("logging_steps", 1),
         ),
         train_dataset=train_dataset,
@@ -329,6 +318,7 @@ def main() -> None:
         },
         wandb_config=_build_wandb_config(config, model_name, dataset_type),
     )
+    trainer.verbose = bool(output_verbose)
     trainer.train()
 
     if config.get("output.save_final_model", True):
@@ -355,12 +345,12 @@ def _build_wandb_config(
     wandb_section = config.get_section("wandb")
     iac_section = config.get_section("iac")
     output_section = dict(config.get_section("output") or {})
-    model_short_name = model_name.split("/")[-1].lower()
-
     if "name" in wandb_section:
         wandb_name = wandb_section["name"]
+    elif "run_name" in wandb_section:
+        wandb_name = wandb_section["run_name"]
     else:
-        wandb_name = f"iac_{dataset_type}_{model_short_name}"
+        wandb_name = f"{dataset_type}-iac"
 
     tags = wandb_section.get("tags", ["iac", dataset_type, "multi-agent", "turns_1"])
 
