@@ -28,7 +28,7 @@ output:
 grpo:
   num_turns: 1
   num_train_epochs: 1
-  learning_rate: 5.0e-6
+  agent_learning_rate: 5.0e-6
   logging_steps: 400
   num_generations: 4
   joint_mode: aligned

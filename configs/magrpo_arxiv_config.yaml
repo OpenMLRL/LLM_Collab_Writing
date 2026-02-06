@@ -28,14 +28,14 @@ output:
 magrpo:
   num_turns: 1
   num_train_epochs: 2
-  learning_rate: 5.0e-6
+  agent_learning_rate: 5.0e-6
   logging_steps: 50
   num_generations: 4
-  joint_mode: aligned
   max_new_tokens: 256
   temperature: 0.7
   top_p: 0.9
   top_k: null
+  joint_mode: aligned
   rollout_buffer_size: 1
   train_batch_size: 1
   eval_interval: 20

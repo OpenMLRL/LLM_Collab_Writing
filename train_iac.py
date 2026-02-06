@@ -188,6 +188,7 @@ def main() -> None:
         config.update(overrides)
 
     model_config = config.get_model_config()
+    critic_config = None
     model_name = model_config.name
 
     dataset_name = config.get("dataset.name")
@@ -245,11 +246,13 @@ def main() -> None:
     top_p = iac_cfg.get("top_p", model_config.top_p)
     top_k = iac_cfg.get("top_k")
     use_separate_critic = bool(iac_cfg.get("use_separate_critic", True))
-    critic_model = (
-        iac_cfg.get("critic_model")
-        or iac_cfg.get("critic_model_name_or_path")
-        or model_name
-    )
+    critics = None
+    if use_separate_critic:
+        critic_config = config.get_critic_config()
+        critic_name = critic_config.name
+        if not critic_name:
+            raise ValueError("critic.name must be provided when use_separate_critic is true")
+        critics = [critic_name] * num_agents
 
     # Propagate verbosity to reward modules
     import rewards.arxiv_rewards as arxiv_rewards
@@ -285,7 +288,7 @@ def main() -> None:
         args=IACConfig(
             num_turns=1,
             num_train_epochs=iac_cfg.get("num_train_epochs", 1),
-            actor_learning_rate=iac_cfg.get("actor_learning_rate", 5e-6),
+            agent_learning_rate=iac_cfg.get("agent_learning_rate", 5e-6),
             critic_learning_rate=iac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=iac_cfg.get("value_loss_coef", 0.6),
             value_clip_range=iac_cfg.get("value_clip_range", 0.2),
@@ -298,7 +301,6 @@ def main() -> None:
             num_agents=num_agents,
             num_generations=iac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,
-            critic_model_name_or_path=critic_model,
             critic_value_head_hidden_dim=iac_cfg.get("critic_value_head_hidden_dim"),
             value_head_hidden_dim=iac_cfg.get("value_head_hidden_dim"),
             discount=iac_cfg.get("discount", 0.9),
@@ -312,11 +314,14 @@ def main() -> None:
         model_config={
             "tokenizer_kwargs": model_config.tokenizer_kwargs,
             "model_kwargs": model_config.model_kwargs,
-            "critic_model_kwargs": iac_cfg.get(
-                "critic_model_kwargs", model_config.model_kwargs
+            "critic_model_kwargs": (
+                critic_config.model_kwargs
+                if critic_config is not None
+                else model_config.model_kwargs
             ),
         },
         wandb_config=_build_wandb_config(config, model_name, dataset_type),
+        critics=critics,
     )
     trainer.verbose = bool(output_verbose)
     trainer.train()

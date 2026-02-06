@@ -188,6 +188,7 @@ def main() -> None:
         config.update(overrides)
 
     model_config = config.get_model_config()
+    critic_config = config.get_critic_config()
     model_name = model_config.name
 
     dataset_name = config.get("dataset.name")
@@ -244,11 +245,10 @@ def main() -> None:
     temperature = maac_cfg.get("temperature", model_config.temperature)
     top_p = maac_cfg.get("top_p", model_config.top_p)
     top_k = maac_cfg.get("top_k")
-    critic_model = (
-        maac_cfg.get("critic_model")
-        or maac_cfg.get("critic_model_name_or_path")
-        or model_name
-    )
+    critic_name = critic_config.name
+    if not critic_name:
+        raise ValueError("critic.name must be provided for MAAC.")
+    critics = [critic_name]
 
     # Propagate verbosity to reward modules
     import rewards.arxiv_rewards as arxiv_rewards
@@ -284,7 +284,7 @@ def main() -> None:
         args=MAACConfig(
             num_turns=1,
             num_train_epochs=maac_cfg.get("num_train_epochs", 1),
-            actor_learning_rate=maac_cfg.get("actor_learning_rate", 5e-6),
+            agent_learning_rate=maac_cfg.get("agent_learning_rate", 5e-6),
             critic_learning_rate=maac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=maac_cfg.get("value_loss_coef", 0.6),
             rollout_buffer_size=maac_cfg.get("rollout_buffer_size", 4),
@@ -295,7 +295,6 @@ def main() -> None:
             do_sample=use_sampling,
             num_agents=num_agents,
             num_generations=maac_cfg.get("num_generations", 1),
-            critic_model_name_or_path=critic_model,
             discount=maac_cfg.get("discount", 0.9),
             critic_type=maac_cfg.get("critic_type", "v"),
             eval_interval=maac_cfg.get("eval_interval", 4),
@@ -308,11 +307,10 @@ def main() -> None:
         model_config={
             "tokenizer_kwargs": model_config.tokenizer_kwargs,
             "model_kwargs": model_config.model_kwargs,
-            "critic_model_kwargs": maac_cfg.get(
-                "critic_model_kwargs", model_config.model_kwargs
-            ),
+            "critic_model_kwargs": critic_config.model_kwargs,
         },
         wandb_config=_build_wandb_config(config, model_name, dataset_type),
+        critics=critics,
     )
     trainer.verbose = bool(output_verbose)
     trainer.train()
