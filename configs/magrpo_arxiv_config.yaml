@@ -38,6 +38,7 @@ magrpo:
   joint_mode: aligned
   rollout_buffer_size: 1
   train_batch_size: 1
+  advantage_normalization: true
   eval_interval: 20
   eval_num_samples: 4
   eval_batch_size: 1

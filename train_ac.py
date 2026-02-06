@@ -225,12 +225,6 @@ def main() -> None:
             f"Single-agent AC expects num_agents=1; received num_agents={num_agents}."
         )
 
-    if "do_sample" in ac_cfg:
-        use_sampling = bool(ac_cfg.get("do_sample"))
-    else:
-        use_sampling = bool(
-            "temperature" in ac_cfg or "top_p" in ac_cfg or "top_k" in ac_cfg
-        )
     temperature = ac_cfg.get("temperature", model_config.temperature)
     top_p = ac_cfg.get("top_p", model_config.top_p)
     top_k = ac_cfg.get("top_k")
@@ -280,13 +274,13 @@ def main() -> None:
             agent_learning_rate=ac_cfg.get("agent_learning_rate", 5e-6),
             critic_learning_rate=ac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=ac_cfg.get("value_loss_coef", 0.6),
+            advantage_normalization=ac_cfg.get("advantage_normalization", True),
             value_clip_range=ac_cfg.get("value_clip_range", 0.2),
             rollout_buffer_size=ac_cfg.get("rollout_buffer_size", 4),
             max_new_tokens=ac_cfg.get("max_new_tokens", 256),
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
-            do_sample=use_sampling,
             num_agents=1,
             num_generations=ac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,

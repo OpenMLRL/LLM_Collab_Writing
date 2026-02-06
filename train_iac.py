@@ -236,12 +236,6 @@ def main() -> None:
             f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
         )
 
-    if "do_sample" in iac_cfg:
-        use_sampling = bool(iac_cfg.get("do_sample"))
-    else:
-        use_sampling = bool(
-            "temperature" in iac_cfg or "top_p" in iac_cfg or "top_k" in iac_cfg
-        )
     temperature = iac_cfg.get("temperature", model_config.temperature)
     top_p = iac_cfg.get("top_p", model_config.top_p)
     top_k = iac_cfg.get("top_k")
@@ -297,7 +291,6 @@ def main() -> None:
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
-            do_sample=use_sampling,
             num_agents=num_agents,
             num_generations=iac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,

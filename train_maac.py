@@ -236,12 +236,6 @@ def main() -> None:
             f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
         )
 
-    if "do_sample" in maac_cfg:
-        use_sampling = bool(maac_cfg.get("do_sample"))
-    else:
-        use_sampling = bool(
-            "temperature" in maac_cfg or "top_p" in maac_cfg or "top_k" in maac_cfg
-        )
     temperature = maac_cfg.get("temperature", model_config.temperature)
     top_p = maac_cfg.get("top_p", model_config.top_p)
     top_k = maac_cfg.get("top_k")
@@ -292,7 +286,6 @@ def main() -> None:
             temperature=temperature,
             top_p=top_p,
             top_k=top_k,
-            do_sample=use_sampling,
             num_agents=num_agents,
             num_generations=maac_cfg.get("num_generations", 1),
             discount=maac_cfg.get("discount", 0.9),

@@ -230,6 +230,7 @@ def main():
         eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=grpo_cfg.get("eval_batch_size", 1),
         train_batch_size=grpo_cfg.get("train_batch_size"),
+        advantage_normalization=grpo_cfg.get("advantage_normalization", True),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
