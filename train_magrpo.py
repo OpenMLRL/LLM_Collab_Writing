@@ -310,6 +310,7 @@ def main():
         top_k=top_k,
         num_agents=num_agents,
         rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 2),
+        train_batch_size=magrpo_cfg.get("train_batch_size"),
         eval_interval=magrpo_cfg.get("eval_interval", 4),
         eval_num_samples=magrpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=magrpo_cfg.get("eval_batch_size", 1),

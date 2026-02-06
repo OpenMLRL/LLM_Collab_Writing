@@ -226,6 +226,7 @@ def main():
         eval_interval=grpo_cfg.get("eval_interval", 4),
         eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=grpo_cfg.get("eval_batch_size", 1),
+        train_batch_size=grpo_cfg.get("train_batch_size"),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
