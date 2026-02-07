@@ -25,7 +25,7 @@ The abstract, sections, and body are all sentence tokenized. The JSON objects ar
 
 ### Processed Dataset
 
-I processed the raw data for the text expansion task with [extract_arXiv_abstract.py](./create_arxiv_abstract.py). The processed dataset is in the same JSONlines format as above, but only contains the `article_id` and `abstract_text` fields, and the abstract length should be **100-300 tokens**. The JSON objects are in the following format:
+The processed dataset is in the same JSONlines format as above, but only contains the `article_id` and `abstract_text` fields, and the abstract length should be **100-300 tokens**. The JSON objects are in the following format:
 
 ```
 { 
