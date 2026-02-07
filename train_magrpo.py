@@ -25,6 +25,8 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils.reward_processor import RewardProcessors
 from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
+
+
 def background_agent_formatter(example: Dict[str, Any]) -> str:
     """Formatter for the background agent (Agent 1) for the arXiv dataset."""
     abstract = example.get("abstract_text", "")
@@ -124,10 +126,12 @@ def get_formatters(dataset_type: str) -> List[Callable[[Dict[str, Any]], str]]:
         raise ValueError(f"Unsupported dataset type '{dataset_type}' for writing tasks.")
 
     return formatters_map[dataset_key]
+
+
 def _adapt_eval_logger(
     base_logger: Callable[[List[str], List[str]], List[Dict[str, Any]]]
 ) -> Callable[..., List[Dict[str, Any]]]:
-    """Wrap legacy two-agent loggers to the new MAGRPO interface."""
+    """Adapt two-agent loggers to the MAGRPO interface."""
 
     def logger(*, agent_completions_turns, **_: Any) -> List[Dict[str, Any]]:
         if not agent_completions_turns or len(agent_completions_turns) < 2:
