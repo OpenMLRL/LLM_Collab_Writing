@@ -36,6 +36,7 @@ output:
 iac:
   num_agents: 2
   num_turns: 1
+  use_separate_critic: true
   num_train_epochs: 20
   agent_learning_rate: 5.0e-6
   critic_learning_rate: 5.0e-6
