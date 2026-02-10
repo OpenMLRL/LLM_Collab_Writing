@@ -285,18 +285,7 @@ def main():
         raise ValueError(
             f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
         )
-    if agent_names is not None:
-        if not isinstance(agent_names, (list, tuple)) or not all(
-            isinstance(x, str) for x in agent_names
-        ):
-            raise ValueError("agents must be a list of model names.")
-        agent_names = [str(x) for x in agent_names]
-        if model_name and any(name != model_name for name in agent_names):
-            raise ValueError("agent_model.name conflicts with agents.")
-        if len(agent_names) != int(num_agents):
-            raise ValueError("agents length must match agents.num_agents.")
-
-    tokenizer_source = model_name or (agent_names[0] if agent_names else None)
+    tokenizer_source = agent_names[0] if agent_names else model_name
     if not tokenizer_source:
         raise ValueError("agent_model.name or agents must be provided.")
     if agent_names:
@@ -415,6 +404,7 @@ def main():
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
     trainer_kwargs: Dict[str, Any] = {
+        "agent_model": model_name or None,
         "agents": agents,
         "num_agents": num_agents,
         "reward_func": reward_func,

@@ -230,13 +230,7 @@ def main() -> None:
         agent_names = [str(x) for x in agents_field]
     elif agents_field is not None and not isinstance(agents_field, dict):
         raise ValueError("agents must be a list of model names.")
-    if agent_names is not None:
-        if model_name and any(name != model_name for name in agent_names):
-            raise ValueError("agent_model.name conflicts with agents.")
-        if len(agent_names) != int(num_agents):
-            raise ValueError("agents length must match maac.num_agents.")
-
-    tokenizer_source = model_name or (agent_names[0] if agent_names else None)
+    tokenizer_source = agent_names[0] if agent_names else model_name
     if not tokenizer_source:
         raise ValueError("agent_model.name or agents must be provided.")
     if agent_names:
@@ -267,17 +261,8 @@ def main() -> None:
         ):
             raise ValueError("critics must be a list of model names.")
         critic_names = [str(x) for x in critics_field]
-        if len(critic_names) != 1:
-            raise ValueError("critics length must match 1 critic.")
     critic_config = config.get_critic_model_config(required=False)
-    critic_name = critic_config.name if critic_config is not None else ""
-    if critic_names is None:
-        if not critic_name:
-            raise ValueError("critic_model.name must be provided for MAAC.")
-        critic_names = [critic_name]
-    else:
-        if critic_name and any(name != critic_name for name in critic_names):
-            raise ValueError("critic_model.name conflicts with critics.")
+    critic_name = critic_config.name if critic_config is not None else None
     critics = critic_names
     critic_model_kwargs: Dict[str, Any] = dict(model_kwargs)
     if critic_config is not None and critic_config.torch_dtype is not None:
@@ -306,12 +291,8 @@ def main() -> None:
                 prev = reward_processor
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
-    model_arg = None
-    agents_arg = None
-    if agent_names:
-        agents_arg = agent_names
-    else:
-        model_arg = model_name
+    model_arg = model_name or None
+    agents_arg = agent_names
     trainer = MAACTrainer(
         agent_model=model_arg,
         agents=agents_arg,
@@ -348,6 +329,7 @@ def main() -> None:
             "critic_model_kwargs": critic_model_kwargs,
         },
         wandb_config=_build_wandb_config(config, model_name, dataset_type),
+        critic_model=critic_name,
         critics=critics,
     )
     trainer.verbose = bool(output_verbose)
