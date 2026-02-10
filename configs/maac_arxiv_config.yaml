@@ -1,4 +1,4 @@
-model:
+agent_model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
   temperature: 0.7
@@ -8,13 +8,15 @@ model:
 
 agents: null
 
-critic:
+critic_model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
   temperature: 0.7bao
   top_p: 0.9
   max_length: 2048
   torch_dtype: "auto"
+
+critics: null
 
 dataset:
   name: "OpenMLRL/arXiv_abstract"

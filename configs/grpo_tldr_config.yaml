@@ -1,4 +1,4 @@
-model:
+agent_model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
   temperature: 0.7
@@ -7,6 +7,10 @@ model:
   torch_dtype: "auto"
 
 agents: null
+
+critic_model: null
+
+critics: null
 
 dataset:
   name: "trl-lib/tldr"

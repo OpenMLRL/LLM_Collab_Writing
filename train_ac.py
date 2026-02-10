@@ -176,7 +176,7 @@ def main() -> None:
         overrides = parse_overrides(args.override)
         config.update(overrides)
 
-    model_config = config.get_model_config()
+    model_config = config.get_agent_model_config()
     critic_config = None
     model_name = model_config.name
 
@@ -232,16 +232,35 @@ def main() -> None:
         model_kwargs["torch_dtype"] = model_config.torch_dtype
     critic_config = None
     critics = None
+    critic_names = None
+    critics_field = config.get("critics")
+    if critics_field is not None:
+        if not isinstance(critics_field, (list, tuple)) or not all(
+            isinstance(x, str) for x in critics_field
+        ):
+            raise ValueError("critics must be a list of model names.")
+        critic_names = [str(x) for x in critics_field]
+        if len(critic_names) != 1:
+            raise ValueError("critics length must match 1 critic.")
     if use_separate_critic:
-        critic_config = config.get_critic_config()
-        critic_name = critic_config.name
-        if not critic_name:
-            raise ValueError("critic.name must be provided when use_separate_critic is true")
-        critics = [critic_name]
-        critic_model_kwargs: Dict[str, Any] = {}
-        if critic_config.torch_dtype is not None:
+        critic_config = config.get_critic_model_config(required=False)
+        critic_name = critic_config.name if critic_config is not None else ""
+        if critic_names is None:
+            if not critic_name:
+                raise ValueError(
+                    "critic_model.name must be provided when use_separate_critic is true"
+                )
+            critic_names = [critic_name]
+        else:
+            if critic_name and any(name != critic_name for name in critic_names):
+                raise ValueError("critic_model.name conflicts with critics.")
+        critics = critic_names
+        critic_model_kwargs = dict(model_kwargs)
+        if critic_config is not None and critic_config.torch_dtype is not None:
             critic_model_kwargs["torch_dtype"] = critic_config.torch_dtype
     else:
+        if critic_names is not None:
+            raise ValueError("critics requires use_separate_critic=true.")
         critic_model_kwargs = model_kwargs
 
     # Propagate verbosity to reward modules
@@ -268,7 +287,7 @@ def main() -> None:
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
     trainer = IACTrainer(
-        model=model_name,
+        agent_model=model_name,
         tokenizer=tokenizer,
         reward_func=reward_func,
         reward_processor=reward_processor,
@@ -356,7 +375,7 @@ def _build_wandb_config(
         "tags": tags,
         "config_sections": {
             "dataset": config.get_section("dataset"),
-            "model": config.get_section("model"),
+            "agent_model": config.get_section("agent_model"),
             "output": output_section,
             "trainer": ac_section,
         },
