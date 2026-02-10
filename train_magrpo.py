@@ -278,8 +278,10 @@ def main():
         agents_config = {"num_agents": len(agent_names)}
     elif isinstance(agents_field, dict):
         agents_config = agents_field
+    elif agents_field is None:
+        agents_config = {}
     else:
-        agents_config = config.get_section("agents")
+        raise ValueError("agents must be a list of model names.")
     num_agents = agents_config.get("num_agents", 2)
     if num_agents != 2:
         raise ValueError(
