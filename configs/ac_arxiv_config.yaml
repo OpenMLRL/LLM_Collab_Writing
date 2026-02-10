@@ -22,11 +22,10 @@ tokenizer:
   padding_side: "left"
 
 output:
-  base_dir: "./magrpo_output"
+  base_dir: "./ac_output"
   verbose: false
   save_final_model: true
-  save_path: "./magrpo_output/ac_arxiv"
-
+  save_path: "./ac_output/ac_arxiv"
 ac:
   num_turns: 1
   num_train_epochs: 4
