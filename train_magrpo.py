@@ -245,7 +245,7 @@ def main():
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
-    model_config = config.get_model_config()
+    model_config = config.get_agent_model_config()
     model_name = model_config.name
 
     dataset_name = config.get("dataset.name")
@@ -263,35 +263,61 @@ def main():
     train_dataset = load_dataset(dataset_name, split=train_split)
     eval_dataset = load_dataset(dataset_name, split=eval_split)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    padding_side = config.get("tokenizer.padding_side")
-    if padding_side:
-        tokenizer.padding_side = padding_side
-
-    if model_config.special_tokens:
-        tokenizer.add_special_tokens(model_config.special_tokens)
-
     model_kwargs: Dict[str, Any] = {}
     if model_config.torch_dtype is not None:
         model_kwargs["torch_dtype"] = model_config.torch_dtype
 
-    agents_config = config.get_section("agents")
+    agents_field = config.get("agents")
+    agent_names = None
+    if isinstance(agents_field, (list, tuple)):
+        if not all(isinstance(x, str) for x in agents_field):
+            raise ValueError("agents must be a list of model names.")
+        agent_names = [str(x) for x in agents_field]
+        agents_config = {"num_agents": len(agent_names)}
+    elif isinstance(agents_field, dict):
+        agents_config = agents_field
+    elif agents_field is None:
+        agents_config = {}
+    else:
+        raise ValueError("agents must be a list of model names.")
     num_agents = agents_config.get("num_agents", 2)
     if num_agents != 2:
         raise ValueError(
             f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
         )
+    tokenizer_source = agent_names[0] if agent_names else model_name
+    if not tokenizer_source:
+        raise ValueError("agent_model.name or agents must be provided.")
+    if agent_names:
+        tokenizers = [AutoTokenizer.from_pretrained(name) for name in agent_names]
+    else:
+        tokenizers = [AutoTokenizer.from_pretrained(tokenizer_source)]
+    for tok in tokenizers:
+        if tok.pad_token is None:
+            tok.pad_token = tok.eos_token
+        padding_side = config.get("tokenizer.padding_side")
+        if padding_side:
+            tok.padding_side = padding_side
+        if model_config.special_tokens:
+            tok.add_special_tokens(model_config.special_tokens)
+    tokenizer = tokenizers[0]
 
-    agents = [
-        AutoModelForCausalLM.from_pretrained(
-            model_name,
-            **model_kwargs,
-        )
-        for _ in range(num_agents)
-    ]
+    if agent_names:
+        agents = [
+            AutoModelForCausalLM.from_pretrained(
+                name,
+                **model_kwargs,
+            )
+            for name in agent_names
+        ]
+    else:
+        agents = [
+            AutoModelForCausalLM.from_pretrained(
+                model_name,
+                **model_kwargs,
+            )
+            for _ in range(num_agents)
+        ]
     magrpo_cfg = config.get_section("magrpo")
     num_turns_cfg = magrpo_cfg.get("num_turns")
     if num_turns_cfg is not None and int(num_turns_cfg) != 1:
@@ -354,7 +380,7 @@ def main():
         "tags": wandb_section.get("tags", ["magrpo", dataset_type]),
         "config_sections": {
             "dataset": config.get_section("dataset"),
-            "model": config.get_section("model"),
+            "agent_model": config.get_section("agent_model"),
             "output": output_section,
             "trainer": magrpo_cfg,
         },
@@ -378,6 +404,7 @@ def main():
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
     trainer_kwargs: Dict[str, Any] = {
+        "agent_model": model_name or None,
         "agents": agents,
         "num_agents": num_agents,
         "reward_func": reward_func,
@@ -385,7 +412,7 @@ def main():
         "args": magrpo_args,
         "train_dataset": train_dataset,
         "eval_dataset": eval_dataset,
-        "tokenizer": tokenizer,
+        "tokenizer": tokenizers if agent_names else tokenizer,
         "wandb_config": wandb_config,
         "dataset_type": dataset_type,
     }

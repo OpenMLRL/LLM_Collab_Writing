@@ -1,17 +1,23 @@
-model:
+agent_model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
   temperature: 0.7
   top_p: 0.9
   max_length: 2048
   torch_dtype: "auto"
-critic:
+
+agents: null
+
+critic_model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
   temperature: 0.7bao
   top_p: 0.9
   max_length: 2048
   torch_dtype: "auto"
+
+critics: null
+
 dataset:
   name: "OpenMLRL/arXiv_abstract"
   type: "arxiv"
@@ -22,10 +28,10 @@ tokenizer:
   padding_side: "left"
 
 output:
-  base_dir: "./magrpo_output"
+  base_dir: "./maac_output"
   verbose: false
   save_final_model: true
-  save_path: "./magrpo_output/maac_arxiv"
+  save_path: "./maac_output/maac_arxiv"
 
 maac:
   num_agents: 2

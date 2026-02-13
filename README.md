@@ -42,7 +42,7 @@ Override any configuration value inline with `--override`:
 ```bash
 python LLM_Collab_Writing/train_magrpo.py \
   --config LLM_Collab_Writing/configs/magrpo_arxiv_config.yaml \
-  --override model.name='Qwen/Qwen3-7B' magrpo.agent_learning_rate=3e-6
+  --override agent_model.name='Qwen/Qwen3-7B' magrpo.agent_learning_rate=3e-6
 ```
 
 ## Settings

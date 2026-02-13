@@ -164,7 +164,7 @@ def main():
         overrides = parse_overrides(args.override)
         config.update(overrides)
 
-    model_config = config.get_model_config()
+    model_config = config.get_agent_model_config()
     model_name = model_config.name
 
     dataset_name = config.get("dataset.name")
@@ -263,7 +263,7 @@ def main():
         "tags": wandb_section.get("tags", ["grpo", dataset_type, "single-agent"]),
         "config_sections": {
             "dataset": config.get_section("dataset"),
-            "model": config.get_section("model"),
+            "agent_model": config.get_section("agent_model"),
             "output": output_section,
             "trainer": grpo_cfg,
         },

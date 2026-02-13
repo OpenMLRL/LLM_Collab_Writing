@@ -23,7 +23,6 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 
 
-# Prompt formatters
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
     """Formatter for the background agent (Agent 1) for the arXiv dataset."""
@@ -187,8 +186,8 @@ def main() -> None:
         overrides = parse_overrides(args.override)
         config.update(overrides)
 
-    model_config = config.get_model_config()
-    critic_config = config.get_critic_config()
+    model_config = config.get_agent_model_config()
+    critic_config = None
     model_name = model_config.name
 
     dataset_name = config.get("dataset.name")
@@ -210,17 +209,6 @@ def main() -> None:
     train_dataset = load_dataset(dataset_name, split=train_split)
     eval_dataset = load_dataset(dataset_name, split=eval_split)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    padding_side = config.get("tokenizer.padding_side")
-    if padding_side:
-        tokenizer.padding_side = padding_side
-
-    if model_config.special_tokens:
-        tokenizer.add_special_tokens(model_config.special_tokens)
-
     num_turns = int(maac_cfg.get("num_turns", 1))
     if num_turns != 1:
         raise ValueError(
@@ -233,6 +221,30 @@ def main() -> None:
         raise ValueError(
             f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
         )
+    agents_field = config.get("agents")
+    agent_names = None
+    if isinstance(agents_field, (list, tuple)):
+        if not all(isinstance(x, str) for x in agents_field):
+            raise ValueError("agents must be a list of model names.")
+        agent_names = [str(x) for x in agents_field]
+    elif agents_field is not None and not isinstance(agents_field, dict):
+        raise ValueError("agents must be a list of model names.")
+    tokenizer_source = agent_names[0] if agent_names else model_name
+    if not tokenizer_source:
+        raise ValueError("agent_model.name or agents must be provided.")
+    if agent_names:
+        tokenizers = [AutoTokenizer.from_pretrained(name) for name in agent_names]
+    else:
+        tokenizers = [AutoTokenizer.from_pretrained(tokenizer_source)]
+    for tok in tokenizers:
+        if tok.pad_token is None:
+            tok.pad_token = tok.eos_token
+        padding_side = config.get("tokenizer.padding_side")
+        if padding_side:
+            tok.padding_side = padding_side
+        if model_config.special_tokens:
+            tok.add_special_tokens(model_config.special_tokens)
+    tokenizer = tokenizers[0]
 
     temperature = maac_cfg.get("temperature", model_config.temperature)
     top_p = maac_cfg.get("top_p", model_config.top_p)
@@ -240,12 +252,19 @@ def main() -> None:
     model_kwargs: Dict[str, Any] = {}
     if model_config.torch_dtype is not None:
         model_kwargs["torch_dtype"] = model_config.torch_dtype
-    critic_name = critic_config.name
-    if not critic_name:
-        raise ValueError("critic.name must be provided for MAAC.")
-    critics = [critic_name]
-    critic_model_kwargs: Dict[str, Any] = {}
-    if critic_config.torch_dtype is not None:
+    critics_field = config.get("critics")
+    critic_names = None
+    if critics_field is not None:
+        if not isinstance(critics_field, (list, tuple)) or not all(
+            isinstance(x, str) for x in critics_field
+        ):
+            raise ValueError("critics must be a list of model names.")
+        critic_names = [str(x) for x in critics_field]
+    critic_config = config.get_critic_model_config(required=False)
+    critic_name = critic_config.name if critic_config is not None else None
+    critics = critic_names
+    critic_model_kwargs: Dict[str, Any] = dict(model_kwargs)
+    if critic_config is not None and critic_config.torch_dtype is not None:
         critic_model_kwargs["torch_dtype"] = critic_config.torch_dtype
 
     # Propagate verbosity to reward modules
@@ -271,9 +290,12 @@ def main() -> None:
                 prev = reward_processor
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
+    model_arg = model_name or None
+    agents_arg = agent_names
     trainer = MAACTrainer(
-        model=model_name,
-        tokenizer=tokenizer,
+        agent_model=model_arg,
+        agents=agents_arg,
+        tokenizer=tokenizers if agent_names else tokenizer,
         reward_func=reward_func,
         reward_processor=reward_processor,
         formatters=formatters,
@@ -306,6 +328,7 @@ def main() -> None:
             "critic_model_kwargs": critic_model_kwargs,
         },
         wandb_config=_build_wandb_config(config, model_name, dataset_type),
+        critic_model=critic_name,
         critics=critics,
     )
     trainer.verbose = bool(output_verbose)
@@ -352,7 +375,7 @@ def _build_wandb_config(
         "tags": tags,
         "config_sections": {
             "dataset": config.get_section("dataset"),
-            "model": config.get_section("model"),
+            "agent_model": config.get_section("agent_model"),
             "output": output_section,
             "trainer": maac_section,
         },
