@@ -34,6 +34,7 @@ output:
   save_path: "./ac_output/ac_arxiv"
 
 ac:
+  parallel_training: auto
   num_turns: 1
   num_train_epochs: 4
   agent_learning_rate: 5.0e-6

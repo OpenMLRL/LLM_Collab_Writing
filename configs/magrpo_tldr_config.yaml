@@ -28,6 +28,7 @@ output:
   save_path: "./magrpo_output/tldr"
 
 magrpo:
+  parallel_training: auto
   num_turns: 1
   num_train_epochs: 2
   agent_learning_rate: 5.0e-6

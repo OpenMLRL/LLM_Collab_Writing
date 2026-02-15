@@ -28,6 +28,7 @@ output:
   save_path: "./grpo_output/tldr_single"
 
 grpo:
+  parallel_training: auto
   num_turns: 1
   num_train_epochs: 1
   agent_learning_rate: 5.0e-6

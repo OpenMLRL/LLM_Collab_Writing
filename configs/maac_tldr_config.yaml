@@ -34,6 +34,7 @@ output:
   save_path: "./maac_output/maac_tldr"
 
 maac:
+  parallel_training: auto
   num_agents: 2
   num_turns: 1
   critic_type: "v"
