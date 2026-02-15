@@ -27,10 +27,10 @@ tokenizer:
   padding_side: "left"
 
 output:
-  base_dir: "./iac_output"
+  base_dir: output_iac_arxiv
   verbose: false
   save_final_model: true
-  save_path: "./iac_output/iac_arxiv"
+  save_path: output_iac_arxiv
 
 iac:
   parallel_training: auto

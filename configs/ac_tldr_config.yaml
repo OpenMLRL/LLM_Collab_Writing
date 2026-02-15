@@ -27,10 +27,10 @@ tokenizer:
   padding_side: "left"
 
 output:
-  base_dir: "./ac_output"
+  base_dir: output_ac_tldr
   verbose: false
   save_final_model: true
-  save_path: "./ac_output/ac_tldr"
+  save_path: output_ac_tldr
 
 ac:
   parallel_training: auto
