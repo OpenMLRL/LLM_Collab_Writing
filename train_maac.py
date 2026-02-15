@@ -246,9 +246,9 @@ def main() -> None:
             tok.add_special_tokens(model_config.special_tokens)
     tokenizer = tokenizers[0]
 
-    temperature = maac_cfg.get("temperature", model_config.temperature)
-    top_p = maac_cfg.get("top_p", model_config.top_p)
-    top_k = maac_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
     model_kwargs: Dict[str, Any] = {}
     if model_config.torch_dtype is not None:
         model_kwargs["torch_dtype"] = model_config.torch_dtype

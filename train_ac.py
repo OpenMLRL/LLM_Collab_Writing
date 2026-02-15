@@ -222,9 +222,9 @@ def main() -> None:
             f"Single-agent AC expects num_agents=1; received num_agents={num_agents}."
         )
 
-    temperature = ac_cfg.get("temperature", model_config.temperature)
-    top_p = ac_cfg.get("top_p", model_config.top_p)
-    top_k = ac_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
     use_separate_critic = bool(ac_cfg.get("use_separate_critic", True))
     model_kwargs: Dict[str, Any] = {}
     if model_config.torch_dtype is not None:

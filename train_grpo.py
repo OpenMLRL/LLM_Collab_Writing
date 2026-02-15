@@ -210,9 +210,9 @@ def main():
             "Please set grpo.num_turns=1 (or remove the field) in the config."
         )
 
-    temperature = grpo_cfg.get("temperature", model_config.temperature)
-    top_p = grpo_cfg.get("top_p", model_config.top_p)
-    top_k = grpo_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
 
     grpo_args = MAGRPOConfig(
         num_turns=1,

@@ -3,6 +3,7 @@ agent_model:
   type: "qwen"
   temperature: 0.7
   top_p: 0.9
+  top_k: null
   max_length: 2048
   torch_dtype: "auto"
 
@@ -11,8 +12,6 @@ agents: null
 critic_model:
   name: "Qwen/Qwen3-1.7B"
   type: "qwen"
-  temperature: 0.7
-  top_p: 0.9
   max_length: 2048
   torch_dtype: "auto"
 
@@ -45,9 +44,6 @@ maac:
   rollout_buffer_size: 4
   train_batch_size: 4
   max_new_tokens: 256
-  temperature: 0.7
-  top_p: 0.9
-  top_k: null
   eval_interval: 20
   eval_num_samples: 4
   eval_batch_size: 1
