@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from config import Config, add_config_args, parse_overrides
 from datasets import load_dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer
 
 from loggers.arxiv_logger import (
     aggregate_arxiv_metrics_for_logging,
@@ -263,10 +263,6 @@ def main():
     train_dataset = load_dataset(dataset_name, split=train_split)
     eval_dataset = load_dataset(dataset_name, split=eval_split)
 
-    model_kwargs: Dict[str, Any] = {}
-    if model_config.torch_dtype is not None:
-        model_kwargs["torch_dtype"] = model_config.torch_dtype
-
     agents_field = config.get("agents")
     agent_names = None
     if isinstance(agents_field, (list, tuple)):
@@ -302,22 +298,6 @@ def main():
             tok.add_special_tokens(model_config.special_tokens)
     tokenizer = tokenizers[0]
 
-    if agent_names:
-        agents = [
-            AutoModelForCausalLM.from_pretrained(
-                name,
-                **model_kwargs,
-            )
-            for name in agent_names
-        ]
-    else:
-        agents = [
-            AutoModelForCausalLM.from_pretrained(
-                model_name,
-                **model_kwargs,
-            )
-            for _ in range(num_agents)
-        ]
     magrpo_cfg = config.get_section("magrpo")
     num_turns_cfg = magrpo_cfg.get("num_turns")
     if num_turns_cfg is not None and int(num_turns_cfg) != 1:
@@ -407,8 +387,12 @@ def main():
 
     trainer_kwargs: Dict[str, Any] = {
         "agent_model": model_name or None,
-        "agents": agents,
+        "agents": agent_names,
         "num_agents": num_agents,
+        "model_config": {
+            "torch_dtype": model_config.torch_dtype,
+            "special_tokens": model_config.special_tokens,
+        },
         "reward_func": reward_func,
         "formatters": formatters,
         "args": magrpo_args,
