@@ -332,9 +332,9 @@ def main():
 
     magrpo_args = MAGRPOConfig(
         num_turns=1,
-        num_train_epochs=magrpo_cfg.get("num_train_epochs", 1),
+        num_train_epochs=magrpo_cfg.get("num_train_epochs", 2),
         agent_learning_rate=magrpo_cfg.get("agent_learning_rate", 5e-6),
-        logging_steps=magrpo_cfg.get("logging_steps", 10),
+        logging_steps=magrpo_cfg.get("logging_steps", 50),
         num_generations=magrpo_cfg.get("num_generations", 4),
         max_new_tokens=magrpo_cfg.get("max_new_tokens", 256),
         temperature=temperature,
@@ -342,14 +342,14 @@ def main():
         top_k=top_k,
         num_agents=num_agents,
         parallel_training=str(magrpo_cfg.get("parallel_training", "none")).strip().lower(),
-        agent_devices=magrpo_cfg.get("agent_devices", None),
+        agent_devices=magrpo_cfg.get("agent_devices", ["cuda:0"]),
         early_termination_threshold=magrpo_cfg.get(
             "early_termination_threshold", -0.2
         ),
-        rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 2),
-        train_batch_size=magrpo_cfg.get("train_batch_size"),
+        rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 1),
+        train_batch_size=magrpo_cfg.get("train_batch_size", 1),
         advantage_normalization=magrpo_cfg.get("advantage_normalization", True),
-        eval_interval=magrpo_cfg.get("eval_interval", 4),
+        eval_interval=magrpo_cfg.get("eval_interval", 20),
         eval_num_samples=magrpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=magrpo_cfg.get("eval_batch_size", 1),
     )
