@@ -1,11 +1,11 @@
 agent_model:
-  name: "Qwen/Qwen3-1.7B"
-  type: "qwen"
+  name: Qwen/Qwen3-1.7B
+  type: qwen
   temperature: 0.6
   top_p: 0.6
   top_k: null
   max_length: 2048
-  torch_dtype: "auto"
+  torch_dtype: auto
 
 agents: null
 
@@ -14,13 +14,13 @@ critic_model: null
 critics: null
 
 dataset:
-  name: "OpenMLRL/arXiv_abstract"
-  type: "arxiv"
-  train_split: "train[:1000]"
-  eval_split: "val[:1000]"
+  name: OpenMLRL/arXiv_abstract
+  type: arxiv
+  train_split: train[:1000]
+  eval_split: val[:1000]
 
 tokenizer:
-  padding_side: "left"
+  padding_side: left
 
 output:
   base_dir: output_grpo_arxiv
@@ -32,11 +32,11 @@ grpo:
   parallel_training: none
   num_turns: 1
   num_train_epochs: 1
-  agent_learning_rate: 5.0e-6
+  agent_learning_rate: 5.0e-06
   logging_steps: 400
   num_generations: 4
-  joint_mode: aligned
   max_new_tokens: 512
+  joint_mode: aligned
   rollout_buffer_size: 2
   train_batch_size: 2
   advantage_normalization: true
@@ -50,7 +50,10 @@ reward_processor:
   shift: 0.0
 
 wandb:
-  project: "comlrl"
-  entity: "OpenMLRL"
-  name: "grpo_arxiv"
-  tags: ["grpo", "arxiv", "single-agent"]
+  project: comlrl
+  entity: OpenMLRL
+  name: grpo_arxiv
+  tags:
+  - grpo
+  - arxiv
+  - single-agent
