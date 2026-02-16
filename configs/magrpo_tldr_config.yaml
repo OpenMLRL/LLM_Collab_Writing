@@ -1,38 +1,31 @@
 agent_model:
-  name: "Qwen/Qwen3-1.7B"
-  type: "qwen"
-  temperature: 0.6
-  top_p: 0.6
+  name: Qwen/Qwen3-1.7B
+  type: qwen
+  temperature: 0.7
+  top_p: 0.9
   top_k: null
   max_length: 2048
-  torch_dtype: "auto"
-
+  torch_dtype: auto
 agents: null
-
 critic_model: null
-
 critics: null
-
 dataset:
-  name: "trl-lib/tldr"
-  type: "tldr"
-  train_split: "train[:1100]"
-  eval_split: "test[:1100]"
-
+  name: trl-lib/tldr
+  type: tldr
+  train_split: train[:1100]
+  eval_split: test[:1100]
 tokenizer:
-  padding_side: "left"
-
+  padding_side: left
 output:
   base_dir: output_magrpo_tldr
   verbose: false
   save_final_model: true
   save_path: output_magrpo_tldr
-
 magrpo:
   parallel_training: auto
   num_turns: 1
   num_train_epochs: 2
-  agent_learning_rate: 5.0e-6
+  agent_learning_rate: 5.0e-06
   logging_steps: 50
   num_generations: 4
   max_new_tokens: 256
@@ -43,14 +36,15 @@ magrpo:
   eval_interval: 20
   eval_num_samples: 4
   eval_batch_size: 1
-
 reward_processor:
   enabled: true
   scale_factor: 1.0
   shift: 0.0
-
 wandb:
-  project: "comlrl"
-  entity: "OpenMLRL"
-  name: "magrpo_tldr"
-  tags: ["magrpo", "tldr", "multi-agent"]
+  project: comlrl
+  entity: OpenMLRL
+  name: magrpo_tldr
+  tags:
+  - magrpo
+  - tldr
+  - multi-agent

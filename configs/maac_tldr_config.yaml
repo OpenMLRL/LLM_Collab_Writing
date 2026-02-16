@@ -1,45 +1,38 @@
 agent_model:
-  name: "Qwen/Qwen3-1.7B"
-  type: "qwen"
-  temperature: 0.6
-  top_p: 0.6
+  name: Qwen/Qwen3-1.7B
+  type: qwen
+  temperature: 0.7
+  top_p: 0.9
   top_k: null
   max_length: 2048
-  torch_dtype: "auto"
-
+  torch_dtype: auto
 agents: null
-
 critic_model:
-  name: "Qwen/Qwen3-1.7B"
-  type: "qwen"
+  name: Qwen/Qwen3-1.7B
+  type: qwen
   max_length: 2048
-  torch_dtype: "auto"
-
+  torch_dtype: auto
 critics: null
-
 dataset:
-  name: "trl-lib/tldr"
-  type: "tldr"
-  train_split: "train[:1100]"
-  eval_split: "test[:1100]"
-
+  name: trl-lib/tldr
+  type: tldr
+  train_split: train[:1100]
+  eval_split: test[:1100]
 tokenizer:
-  padding_side: "left"
-
+  padding_side: left
 output:
   base_dir: output_maac_tldr
   verbose: false
   save_final_model: true
   save_path: output_maac_tldr
-
 maac:
   parallel_training: auto
   num_agents: 2
   num_turns: 1
-  critic_type: "v"
+  critic_type: v
   num_train_epochs: 20
-  agent_learning_rate: 5.0e-6
-  critic_learning_rate: 5.0e-6
+  agent_learning_rate: 5.0e-06
+  critic_learning_rate: 5.0e-06
   value_loss_coef: 0.6
   rollout_buffer_size: 4
   train_batch_size: 4
@@ -48,14 +41,15 @@ maac:
   eval_num_samples: 4
   eval_batch_size: 1
   logging_steps: 50
-
 reward_processor:
   enabled: true
   scale_factor: 1.0
   shift: 0.0
-
 wandb:
-  project: "comlrl"
-  entity: "OpenMLRL"
-  name: "maac_tldr"
-  tags: ["maac", "tldr", "multi-agent"]
+  project: comlrl
+  entity: OpenMLRL
+  name: maac_tldr
+  tags:
+  - maac
+  - tldr
+  - multi-agent
