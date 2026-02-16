@@ -29,7 +29,7 @@ output:
   save_path: output_grpo_arxiv
 
 grpo:
-  parallel_training: auto
+  parallel_training: mp
   num_turns: 1
   num_train_epochs: 1
   agent_learning_rate: 5.0e-6

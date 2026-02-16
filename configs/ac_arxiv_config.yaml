@@ -26,7 +26,7 @@ output:
   save_final_model: true
   save_path: output_ac_arxiv
 ac:
-  parallel_training: auto
+  parallel_training: mp
   num_turns: 1
   num_train_epochs: 4
   agent_learning_rate: 5.0e-06

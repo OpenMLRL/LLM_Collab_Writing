@@ -225,7 +225,7 @@ def main():
         top_p=top_p,
         top_k=top_k,
         num_agents=1,
-        parallel_training=str(grpo_cfg.get("parallel_training", "auto")).strip().lower(),
+        parallel_training=str(grpo_cfg.get("parallel_training", "mp")).strip().lower(),
         agent_devices=grpo_cfg.get("agent_devices", None),
         early_termination_threshold=grpo_cfg.get(
             "early_termination_threshold", -0.2
