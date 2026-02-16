@@ -341,7 +341,7 @@ def main():
         top_p=top_p,
         top_k=top_k,
         num_agents=num_agents,
-        parallel_training=str(magrpo_cfg.get("parallel_training", "mp")).strip().lower(),
+        parallel_training=str(magrpo_cfg.get("parallel_training", "none")).strip().lower(),
         agent_devices=magrpo_cfg.get("agent_devices", None),
         early_termination_threshold=magrpo_cfg.get(
             "early_termination_threshold", -0.2

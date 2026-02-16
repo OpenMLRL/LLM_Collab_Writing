@@ -26,7 +26,9 @@ output:
   save_final_model: true
   save_path: output_maac_arxiv
 maac:
-  parallel_training: mp
+  parallel_training: none
+  agent_devices: ["cuda:0"]
+  critic_devices: ["cuda:0"]
   num_agents: 2
   num_turns: 1
   critic_type: v
