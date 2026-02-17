@@ -246,9 +246,9 @@ def main() -> None:
             tok.add_special_tokens(model_config.special_tokens)
     tokenizer = tokenizers[0]
 
-    temperature = maac_cfg.get("temperature", model_config.temperature)
-    top_p = maac_cfg.get("top_p", model_config.top_p)
-    top_k = maac_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
     model_kwargs: Dict[str, Any] = {}
     if model_config.torch_dtype is not None:
         model_kwargs["torch_dtype"] = model_config.torch_dtype
@@ -303,7 +303,7 @@ def main() -> None:
         external_transition=None,
         args=MAACConfig(
             num_turns=1,
-            num_train_epochs=maac_cfg.get("num_train_epochs", 1),
+            num_train_epochs=maac_cfg.get("num_train_epochs", 20),
             agent_learning_rate=maac_cfg.get("agent_learning_rate", 5e-6),
             critic_learning_rate=maac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=maac_cfg.get("value_loss_coef", 0.6),
@@ -314,12 +314,15 @@ def main() -> None:
             top_k=top_k,
             num_agents=num_agents,
             num_generations=maac_cfg.get("num_generations", 1),
+            parallel_training=str(maac_cfg.get("parallel_training", "none")).strip().lower(),
+            agent_devices=maac_cfg.get("agent_devices", ["cuda:0"]),
+            critic_devices=maac_cfg.get("critic_devices", ["cuda:0"]),
             discount=maac_cfg.get("discount", 0.9),
             critic_type=maac_cfg.get("critic_type", "v"),
-            eval_interval=maac_cfg.get("eval_interval", 4),
+            eval_interval=maac_cfg.get("eval_interval", 20),
             eval_num_samples=maac_cfg.get("eval_num_samples", 4),
             eval_batch_size=maac_cfg.get("eval_batch_size", 1),
-            logging_steps=maac_cfg.get("logging_steps", 1),
+            logging_steps=maac_cfg.get("logging_steps", 50),
         ),
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,

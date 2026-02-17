@@ -255,9 +255,9 @@ def main() -> None:
             tok.add_special_tokens(model_config.special_tokens)
     tokenizer = tokenizers[0]
 
-    temperature = iac_cfg.get("temperature", model_config.temperature)
-    top_p = iac_cfg.get("top_p", model_config.top_p)
-    top_k = iac_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
     use_separate_critic = bool(iac_cfg.get("use_separate_critic", True))
     model_kwargs: Dict[str, Any] = {}
     if model_config.torch_dtype is not None:
@@ -305,7 +305,7 @@ def main() -> None:
         external_transition=None,
         args=IACConfig(
             num_turns=1,
-            num_train_epochs=iac_cfg.get("num_train_epochs", 1),
+            num_train_epochs=iac_cfg.get("num_train_epochs", 20),
             agent_learning_rate=iac_cfg.get("agent_learning_rate", 5e-6),
             critic_learning_rate=iac_cfg.get("critic_learning_rate", 5e-6),
             value_loss_coef=iac_cfg.get("value_loss_coef", 0.6),
@@ -318,13 +318,16 @@ def main() -> None:
             num_agents=num_agents,
             num_generations=iac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,
+            parallel_training=str(iac_cfg.get("parallel_training", "none")).strip().lower(),
+            agent_devices=iac_cfg.get("agent_devices", ["cuda:0"]),
+            critic_devices=iac_cfg.get("critic_devices", ["cuda:0"]),
             critic_value_head_hidden_dim=iac_cfg.get("critic_value_head_hidden_dim"),
             value_head_hidden_dim=iac_cfg.get("value_head_hidden_dim"),
             discount=iac_cfg.get("discount", 0.9),
-            eval_interval=iac_cfg.get("eval_interval", 4),
+            eval_interval=iac_cfg.get("eval_interval", 20),
             eval_num_samples=iac_cfg.get("eval_num_samples", 4),
             eval_batch_size=iac_cfg.get("eval_batch_size", 1),
-            logging_steps=iac_cfg.get("logging_steps", 1),
+            logging_steps=iac_cfg.get("logging_steps", 50),
         ),
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,

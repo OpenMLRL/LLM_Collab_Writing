@@ -222,9 +222,9 @@ def main() -> None:
             f"Single-agent AC expects num_agents=1; received num_agents={num_agents}."
         )
 
-    temperature = ac_cfg.get("temperature", model_config.temperature)
-    top_p = ac_cfg.get("top_p", model_config.top_p)
-    top_k = ac_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
     use_separate_critic = bool(ac_cfg.get("use_separate_critic", True))
     model_kwargs: Dict[str, Any] = {}
     if model_config.torch_dtype is not None:
@@ -291,6 +291,9 @@ def main() -> None:
             num_agents=1,
             num_generations=ac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,
+            parallel_training=str(ac_cfg.get("parallel_training", "none")).strip().lower(),
+            agent_devices=ac_cfg.get("agent_devices", None),
+            critic_devices=ac_cfg.get("critic_devices", None),
             critic_value_head_hidden_dim=ac_cfg.get("critic_value_head_hidden_dim"),
             value_head_hidden_dim=ac_cfg.get("value_head_hidden_dim"),
             discount=ac_cfg.get("discount", 0.9),

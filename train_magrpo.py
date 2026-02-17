@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from config import Config, add_config_args, parse_overrides
 from datasets import load_dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoTokenizer
 
 from loggers.arxiv_logger import (
     aggregate_arxiv_metrics_for_logging,
@@ -263,10 +263,6 @@ def main():
     train_dataset = load_dataset(dataset_name, split=train_split)
     eval_dataset = load_dataset(dataset_name, split=eval_split)
 
-    model_kwargs: Dict[str, Any] = {}
-    if model_config.torch_dtype is not None:
-        model_kwargs["torch_dtype"] = model_config.torch_dtype
-
     agents_field = config.get("agents")
     agent_names = None
     if isinstance(agents_field, (list, tuple)):
@@ -302,22 +298,6 @@ def main():
             tok.add_special_tokens(model_config.special_tokens)
     tokenizer = tokenizers[0]
 
-    if agent_names:
-        agents = [
-            AutoModelForCausalLM.from_pretrained(
-                name,
-                **model_kwargs,
-            )
-            for name in agent_names
-        ]
-    else:
-        agents = [
-            AutoModelForCausalLM.from_pretrained(
-                model_name,
-                **model_kwargs,
-            )
-            for _ in range(num_agents)
-        ]
     magrpo_cfg = config.get_section("magrpo")
     num_turns_cfg = magrpo_cfg.get("num_turns")
     if num_turns_cfg is not None and int(num_turns_cfg) != 1:
@@ -326,28 +306,30 @@ def main():
             "Please set magrpo.num_turns=1 (or remove the field) in the config."
         )
 
-    temperature = magrpo_cfg.get("temperature", model_config.temperature)
-    top_p = magrpo_cfg.get("top_p", model_config.top_p)
-    top_k = magrpo_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
 
     magrpo_args = MAGRPOConfig(
         num_turns=1,
-        num_train_epochs=magrpo_cfg.get("num_train_epochs", 1),
+        num_train_epochs=magrpo_cfg.get("num_train_epochs", 2),
         agent_learning_rate=magrpo_cfg.get("agent_learning_rate", 5e-6),
-        logging_steps=magrpo_cfg.get("logging_steps", 10),
+        logging_steps=magrpo_cfg.get("logging_steps", 50),
         num_generations=magrpo_cfg.get("num_generations", 4),
         max_new_tokens=magrpo_cfg.get("max_new_tokens", 256),
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
         num_agents=num_agents,
+        parallel_training=str(magrpo_cfg.get("parallel_training", "none")).strip().lower(),
+        agent_devices=magrpo_cfg.get("agent_devices", ["cuda:0"]),
         early_termination_threshold=magrpo_cfg.get(
             "early_termination_threshold", -0.2
         ),
-        rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 2),
-        train_batch_size=magrpo_cfg.get("train_batch_size"),
+        rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 1),
+        train_batch_size=magrpo_cfg.get("train_batch_size", 1),
         advantage_normalization=magrpo_cfg.get("advantage_normalization", True),
-        eval_interval=magrpo_cfg.get("eval_interval", 4),
+        eval_interval=magrpo_cfg.get("eval_interval", 20),
         eval_num_samples=magrpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=magrpo_cfg.get("eval_batch_size", 1),
     )
@@ -405,8 +387,12 @@ def main():
 
     trainer_kwargs: Dict[str, Any] = {
         "agent_model": model_name or None,
-        "agents": agents,
+        "agents": agent_names,
         "num_agents": num_agents,
+        "model_config": {
+            "torch_dtype": model_config.torch_dtype,
+            "special_tokens": model_config.special_tokens,
+        },
         "reward_func": reward_func,
         "formatters": formatters,
         "args": magrpo_args,

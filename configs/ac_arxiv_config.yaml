@@ -1,50 +1,47 @@
 agent_model:
-  name: "Qwen/Qwen3-1.7B"
-  type: "qwen"
+  name: Qwen/Qwen3-1.7B
+  type: qwen
   temperature: 0.7
   top_p: 0.9
+  top_k: null
   max_length: 2048
-  torch_dtype: "auto"
+  torch_dtype: auto
 
 agents: null
 
 critic_model:
-  name: "Qwen/Qwen3-1.7B"
-  type: "qwen"
-  temperature: 0.7
-  top_p: 0.9
+  name: Qwen/Qwen3-1.7B
+  type: qwen
   max_length: 2048
-  torch_dtype: "auto"
+  torch_dtype: auto
 
 critics: null
 
 dataset:
-  name: "OpenMLRL/arXiv_abstract"
-  type: "arxiv"
-  train_split: "train[:1000]"
-  eval_split: "val[:1000]"
+  name: OpenMLRL/arXiv_abstract
+  type: arxiv
+  train_split: train[:1000]
+  eval_split: val[:1000]
 
 tokenizer:
-  padding_side: "left"
+  padding_side: left
 
 output:
-  base_dir: "./ac_output"
+  base_dir: output_ac_arxiv
   verbose: false
   save_final_model: true
-  save_path: "./ac_output/ac_arxiv"
+  save_path: output_ac_arxiv
 
 ac:
+  parallel_training: none
   num_turns: 1
   num_train_epochs: 4
-  agent_learning_rate: 5.0e-6
-  critic_learning_rate: 5.0e-6
+  agent_learning_rate: 5.0e-06
+  critic_learning_rate: 5.0e-06
   value_loss_coef: 0.6
-  advantage_normalization: true
   rollout_buffer_size: 4
   max_new_tokens: 512
-  temperature: 0.7
-  top_p: 0.9
-  top_k: null
+  advantage_normalization: true
   eval_interval: 20
   eval_num_samples: 4
   eval_batch_size: 1
@@ -56,7 +53,10 @@ reward_processor:
   shift: 0.0
 
 wandb:
-  project: "comlrl"
-  entity: "OpenMLRL"
-  name: "ac_arxiv"
-  tags: ["ac", "arxiv", "single-agent"]
+  project: comlrl
+  entity: OpenMLRL
+  name: ac_arxiv
+  tags:
+  - ac
+  - arxiv
+  - single-agent

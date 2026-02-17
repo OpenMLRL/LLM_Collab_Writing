@@ -210,9 +210,9 @@ def main():
             "Please set grpo.num_turns=1 (or remove the field) in the config."
         )
 
-    temperature = grpo_cfg.get("temperature", model_config.temperature)
-    top_p = grpo_cfg.get("top_p", model_config.top_p)
-    top_k = grpo_cfg.get("top_k")
+    temperature = model_config.temperature
+    top_p = model_config.top_p
+    top_k = model_config.top_k
 
     grpo_args = MAGRPOConfig(
         num_turns=1,
@@ -225,6 +225,8 @@ def main():
         top_p=top_p,
         top_k=top_k,
         num_agents=1,
+        parallel_training=str(grpo_cfg.get("parallel_training", "none")).strip().lower(),
+        agent_devices=grpo_cfg.get("agent_devices", None),
         early_termination_threshold=grpo_cfg.get(
             "early_termination_threshold", -0.2
         ),
