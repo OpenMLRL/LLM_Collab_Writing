@@ -332,6 +332,8 @@ def main():
         eval_interval=magrpo_cfg.get("eval_interval", 20),
         eval_num_samples=magrpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=magrpo_cfg.get("eval_batch_size", 1),
+        reference_kl_enabled=magrpo_cfg.get("reference_kl_enabled", False),
+        reference_kl_coef=magrpo_cfg.get("reference_kl_coef", 0.1),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
