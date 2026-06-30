@@ -357,52 +357,50 @@ def aggregate_arxiv_metrics_for_logging(metrics_list):
     if not metrics_list:
         return {}
 
-    requested_metrics = [
-        "completions1_num_tokens",
-        "completions2_num_tokens",
-        "level1_reward",
-        "completions1_length",
-        "completions2_length",
-        "level2_reward",
-        "completions1_num_unique_words",
-        "completions2_num_unique_words",
-        "level3_reward",
-        "jaccard_score",
-        "num_transition_categories",
-        "jaccard_reward",
-        "transition_reward",
-        "transition_reward_scale",  # Added new metric
-        "level4_reward",
-        "gated_total_reward",
-        "ungated_total_reward",
-        "length_ratio",
-        "unique_words_ratio",
-        "tokens_ratio",
-        "optimal_length_ratio",
-        "optimal_unique_words_ratio",
-        "acceptable_length_ratio",
-        "acceptable_unique_words_ratio",
-        "has_transition_words",
-        "c1_in_token_range",
-        "c2_in_token_range",
-    ]
-
     aggregated = {}
-    for key in requested_metrics:
+
+    metric_map = {
+        "background_tokens": "completions1_num_tokens",
+        "complement_tokens": "completions2_num_tokens",
+        "background_chars": "completions1_length",
+        "complement_chars": "completions2_length",
+        "background_unique_words": "completions1_num_unique_words",
+        "complement_unique_words": "completions2_num_unique_words",
+        "structure_reward": "level1_reward",
+        "length_reward": "level2_reward",
+        "diversity_reward": "level3_reward",
+        "style_reward": "level4_reward",
+        "jaccard_score": "jaccard_score",
+        "jaccard_reward": "jaccard_reward",
+        "transition_categories": "num_transition_categories",
+        "transition_reward": "transition_reward",
+        "transition_reward_scale": "transition_reward_scale",
+        "gated_total_reward": "gated_total_reward",
+        "ungated_total_reward": "ungated_total_reward",
+        "length_ratio": "length_ratio",
+        "tokens_ratio": "tokens_ratio",
+        "unique_words_ratio": "unique_words_ratio",
+    }
+
+    for clean_key, key in metric_map.items():
         values = [sample[key] for sample in metrics_list if key in sample]
         if values:
-            # For boolean metrics, calculate the proportion of True values
-            if key in [
-                "optimal_length_ratio",
-                "optimal_unique_words_ratio",
-                "acceptable_length_ratio",
-                "acceptable_unique_words_ratio",
-                "has_transition_words",
-                "c1_in_token_range",
-                "c2_in_token_range",
-            ]:
-                aggregated[key] = np.mean([float(v) for v in values])
-            else:
-                aggregated[key] = np.mean(values)
+            aggregated[f"turn_1/arxiv/{clean_key}"] = float(np.mean(values))
+
+    boolean_map = {
+        "optimal_length_rate": "optimal_length_ratio",
+        "optimal_unique_words_rate": "optimal_unique_words_ratio",
+        "acceptable_length_rate": "acceptable_length_ratio",
+        "acceptable_unique_words_rate": "acceptable_unique_words_ratio",
+        "has_transition_words_rate": "has_transition_words",
+        "background_in_token_range_rate": "c1_in_token_range",
+        "complement_in_token_range_rate": "c2_in_token_range",
+    }
+    for clean_key, key in boolean_map.items():
+        values = [sample[key] for sample in metrics_list if key in sample]
+        if values:
+            aggregated[f"turn_1/arxiv/{clean_key}"] = float(
+                np.mean([float(value) for value in values])
+            )
 
     return aggregated

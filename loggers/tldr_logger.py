@@ -294,30 +294,44 @@ def aggregate_tldr_metrics_for_logging(metrics_list):
     if not metrics_list:
         return {}
 
-    requested_metrics = [
-        "completions1_num_tokens",
-        "completions2_num_tokens",
-        "level1_reward",
-        "completions1_length",
-        "completions2_length",
-        "level2_reward",
-        "completions1_num_unique_words",
-        "completions2_num_unique_words",
-        "level3_reward",
-        "jaccard_score",
-        "num_transition_categories",
-        "jaccard_reward",
-        "transition_reward",
-        "gated_total_reward",
-        "ungated_total_reward",
-        "length_ratio",
-        "unique_words_ratio",
-    ]
-
     aggregated = {}
-    for key in requested_metrics:
+
+    metric_map = {
+        "summary_tokens": "completions1_num_tokens",
+        "elaboration_tokens": "completions2_num_tokens",
+        "summary_chars": "completions1_length",
+        "elaboration_chars": "completions2_length",
+        "summary_unique_words": "completions1_num_unique_words",
+        "elaboration_unique_words": "completions2_num_unique_words",
+        "structure_reward": "level1_reward",
+        "length_reward": "level2_reward",
+        "diversity_reward": "level3_reward",
+        "jaccard_score": "jaccard_score",
+        "jaccard_reward": "jaccard_reward",
+        "transition_categories": "num_transition_categories",
+        "transition_reward": "transition_reward",
+        "gated_total_reward": "gated_total_reward",
+        "ungated_total_reward": "ungated_total_reward",
+        "length_ratio": "length_ratio",
+        "tokens_ratio": "tokens_ratio",
+        "unique_words_ratio": "unique_words_ratio",
+    }
+
+    for clean_key, key in metric_map.items():
         values = [sample[key] for sample in metrics_list if key in sample]
         if values:
-            aggregated[key] = np.mean(values)
+            aggregated[f"turn_1/tldr/{clean_key}"] = float(np.mean(values))
+
+    boolean_map = {
+        "optimal_length_rate": "optimal_length_ratio",
+        "optimal_unique_words_rate": "optimal_unique_words_ratio",
+        "has_transition_words_rate": "has_transition_words",
+    }
+    for clean_key, key in boolean_map.items():
+        values = [sample[key] for sample in metrics_list if key in sample]
+        if values:
+            aggregated[f"turn_1/tldr/{clean_key}"] = float(
+                np.mean([float(value) for value in values])
+            )
 
     return aggregated

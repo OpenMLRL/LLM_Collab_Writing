@@ -19,6 +19,7 @@ from transformers import AutoTokenizer
 from config import Config, add_config_args, parse_overrides
 from comlrl.trainers.actor_critic import IACConfig, IACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
+from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 
@@ -276,6 +277,7 @@ def main() -> None:
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
+    metrics_callback = build_ac_writing_metrics_callback(dataset_type, num_agents)
 
     reward_processor = None
     if config.get("reward_processor.enabled", True):
@@ -301,7 +303,7 @@ def main() -> None:
         reward_func=reward_func,
         reward_processor=reward_processor,
         formatters=formatters,
-        metrics_callback=None,
+        metrics_callback=metrics_callback,
         external_transition=None,
         args=IACConfig(
             num_turns=1,
