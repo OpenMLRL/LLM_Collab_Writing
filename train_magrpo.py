@@ -334,6 +334,7 @@ def main():
         eval_batch_size=magrpo_cfg.get("eval_batch_size", 1),
         reference_kl_enabled=magrpo_cfg.get("reference_kl_enabled", False),
         reference_kl_coef=magrpo_cfg.get("reference_kl_coef", 0.1),
+        reference_devices=magrpo_cfg.get("reference_devices", None),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards

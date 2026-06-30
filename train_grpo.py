@@ -237,6 +237,7 @@ def main():
         advantage_normalization=grpo_cfg.get("advantage_normalization", True),
         reference_kl_enabled=grpo_cfg.get("reference_kl_enabled", False),
         reference_kl_coef=grpo_cfg.get("reference_kl_coef", 0.1),
+        reference_devices=grpo_cfg.get("reference_devices", None),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
