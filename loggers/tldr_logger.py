@@ -144,13 +144,9 @@ def tldr_combined_reward_logger(completions1, completions2):
         metrics["completions1_length"] = len(c1)
         metrics["completions2_length"] = len(c2)
 
-        # Unique word counts (excluding stopwords)
-        metrics["completions1_num_unique_words"] = count_unique_words(
-            c1, exclude_stopwords=True
-        )
-        metrics["completions2_num_unique_words"] = count_unique_words(
-            c2, exclude_stopwords=True
-        )
+        # Unique word counts match the reward function's Level 3 calculation.
+        metrics["completions1_num_unique_words"] = count_unique_words(c1)
+        metrics["completions2_num_unique_words"] = count_unique_words(c2)
 
         # LEVEL 1: STRUCTURAL REWARD
 

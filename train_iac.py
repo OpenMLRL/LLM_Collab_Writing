@@ -266,6 +266,9 @@ def main() -> None:
     critic_config = config.get_critic_model_config(required=False)
     critic_name = critic_config.name if critic_config is not None else None
     critics = critic_names
+    if not use_separate_critic:
+        critic_name = None
+        critics = None
     critic_model_kwargs = dict(model_kwargs)
     if critic_config is not None and critic_config.torch_dtype is not None:
         critic_model_kwargs["torch_dtype"] = critic_config.torch_dtype
@@ -325,7 +328,7 @@ def main() -> None:
             critic_devices=iac_cfg.get("critic_devices", ["cuda:0"]),
             critic_value_head_hidden_dim=iac_cfg.get("critic_value_head_hidden_dim"),
             value_head_hidden_dim=iac_cfg.get("value_head_hidden_dim"),
-            discount=iac_cfg.get("discount", 0.9),
+            discount=iac_cfg.get("discount", 1.0),
             eval_interval=iac_cfg.get("eval_interval", 20),
             eval_num_samples=iac_cfg.get("eval_num_samples", 4),
             eval_batch_size=iac_cfg.get("eval_batch_size", 1),
