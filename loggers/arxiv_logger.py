@@ -359,7 +359,7 @@ def aggregate_arxiv_metrics_for_logging(metrics_list):
 
     aggregated = {}
 
-    prefix = "turn_1/writing/"
+    prefix = "turn_1/"
     metric_map = {
         "agent_1_tokens": "completions1_num_tokens",
         "agent_2_tokens": "completions2_num_tokens",
