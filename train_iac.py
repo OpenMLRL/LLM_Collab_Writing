@@ -19,6 +19,7 @@ from transformers import AutoTokenizer
 from config import Config, add_config_args, parse_overrides
 from comlrl.trainers.actor_critic import IACConfig, IACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
+from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 
@@ -265,6 +266,9 @@ def main() -> None:
     critic_config = config.get_critic_model_config(required=False)
     critic_name = critic_config.name if critic_config is not None else None
     critics = critic_names
+    if not use_separate_critic:
+        critic_name = None
+        critics = None
     critic_model_kwargs = dict(model_kwargs)
     if critic_config is not None and critic_config.torch_dtype is not None:
         critic_model_kwargs["torch_dtype"] = critic_config.torch_dtype
@@ -276,6 +280,7 @@ def main() -> None:
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
+    metrics_callback = build_ac_writing_metrics_callback(dataset_type, num_agents)
 
     reward_processor = None
     if config.get("reward_processor.enabled", True):
@@ -301,7 +306,7 @@ def main() -> None:
         reward_func=reward_func,
         reward_processor=reward_processor,
         formatters=formatters,
-        metrics_callback=None,
+        metrics_callback=metrics_callback,
         external_transition=None,
         args=IACConfig(
             num_turns=1,
@@ -323,7 +328,7 @@ def main() -> None:
             critic_devices=iac_cfg.get("critic_devices", ["cuda:0"]),
             critic_value_head_hidden_dim=iac_cfg.get("critic_value_head_hidden_dim"),
             value_head_hidden_dim=iac_cfg.get("value_head_hidden_dim"),
-            discount=iac_cfg.get("discount", 0.9),
+            discount=iac_cfg.get("discount", 1.0),
             eval_interval=iac_cfg.get("eval_interval", 20),
             eval_num_samples=iac_cfg.get("eval_num_samples", 4),
             eval_batch_size=iac_cfg.get("eval_batch_size", 1),
