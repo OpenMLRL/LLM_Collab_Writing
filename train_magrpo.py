@@ -7,8 +7,10 @@ formatters, rewards, and evaluation logging for writing-focused datasets.
 
 import argparse
 import os
+import random
 from typing import Any, Callable, Dict, List, Optional
 
+import torch
 from config import Config, add_config_args, parse_overrides
 from datasets import load_dataset
 from transformers import AutoTokenizer
@@ -230,6 +232,12 @@ def infer_dataset_type(dataset_name: str, explicit_type: Optional[str]) -> str:
     )
 
 
+def _set_seed(seed: int) -> None:
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
 def main():
     """Configure and launch MAGRPO training for writing datasets."""
     parser = argparse.ArgumentParser(
@@ -259,6 +267,10 @@ def main():
 
     train_split = config.get("dataset.train_split")
     eval_split = config.get("dataset.eval_split")
+
+    magrpo_cfg = config.get_section("magrpo")
+    seed_value = int(config.get("seed", magrpo_cfg.get("seed", 42)))
+    _set_seed(seed_value)
 
     train_dataset = load_dataset(dataset_name, split=train_split)
     eval_dataset = load_dataset(dataset_name, split=eval_split)
@@ -298,7 +310,6 @@ def main():
             tok.add_special_tokens(model_config.special_tokens)
     tokenizer = tokenizers[0]
 
-    magrpo_cfg = config.get_section("magrpo")
     num_turns_cfg = magrpo_cfg.get("num_turns")
     if num_turns_cfg is not None and int(num_turns_cfg) != 1:
         raise ValueError(
