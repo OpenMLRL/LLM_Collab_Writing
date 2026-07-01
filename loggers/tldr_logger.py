@@ -292,16 +292,18 @@ def aggregate_tldr_metrics_for_logging(metrics_list):
 
     aggregated = {}
 
+    prefix = "turn_1/writing/"
     metric_map = {
-        "summary_tokens": "completions1_num_tokens",
-        "elaboration_tokens": "completions2_num_tokens",
-        "summary_chars": "completions1_length",
-        "elaboration_chars": "completions2_length",
-        "summary_unique_words": "completions1_num_unique_words",
-        "elaboration_unique_words": "completions2_num_unique_words",
+        "agent_1_tokens": "completions1_num_tokens",
+        "agent_2_tokens": "completions2_num_tokens",
+        "agent_1_chars": "completions1_length",
+        "agent_2_chars": "completions2_length",
+        "agent_1_unique_words": "completions1_num_unique_words",
+        "agent_2_unique_words": "completions2_num_unique_words",
         "structure_reward": "level1_reward",
         "length_reward": "level2_reward",
         "diversity_reward": "level3_reward",
+        "style_reward": "level4_reward",
         "jaccard_score": "jaccard_score",
         "jaccard_reward": "jaccard_reward",
         "transition_categories": "num_transition_categories",
@@ -316,17 +318,19 @@ def aggregate_tldr_metrics_for_logging(metrics_list):
     for clean_key, key in metric_map.items():
         values = [sample[key] for sample in metrics_list if key in sample]
         if values:
-            aggregated[f"turn_1/tldr/{clean_key}"] = float(np.mean(values))
+            aggregated[f"{prefix}{clean_key}"] = float(np.mean(values))
 
     boolean_map = {
         "optimal_length_rate": "optimal_length_ratio",
         "optimal_unique_words_rate": "optimal_unique_words_ratio",
         "has_transition_words_rate": "has_transition_words",
+        "agent_1_in_token_range_rate": "c1_in_token_range",
+        "agent_2_in_token_range_rate": "c2_in_token_range",
     }
     for clean_key, key in boolean_map.items():
         values = [sample[key] for sample in metrics_list if key in sample]
         if values:
-            aggregated[f"turn_1/tldr/{clean_key}"] = float(
+            aggregated[f"{prefix}{clean_key}"] = float(
                 np.mean([float(value) for value in values])
             )
 
