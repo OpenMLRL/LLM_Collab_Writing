@@ -12,7 +12,7 @@ agents: null
 dataset:
   name: trl-lib/tldr
   type: tldr
-  train_split: train[:1000]
+  train_split: train[:150]
   eval_split: test[:1000]
 
 tokenizer:
@@ -66,4 +66,3 @@ wandb:
   - tldr
   - multi-agent
   - turns_1
-
