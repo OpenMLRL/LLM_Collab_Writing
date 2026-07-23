@@ -2,7 +2,7 @@
 
 This repo provides the extended environments for [**CoMLRL**](https://github.com/OpenMLRL/CoMLRL).
 
-This repository contains the writing-task experiments in [**[AAAI26]** **_LLM Collaboration with Multi‑Agent Reinforcement Learning_**](https://arxiv.org/abs/2508.04652). 
+This repository contains the writing-task experiments in [**[AAAI26]** **_LLM Collaboration with Multi‑Agent Reinforcement Learning_**](https://arxiv.org/abs/2508.04652).
 
 <img src="./demo_aw.gif" alt="Writing demo" width="600px">
 
@@ -35,6 +35,12 @@ python LLM_Collab_Writing/train_grpo.py \
 
 python LLM_Collab_Writing/train_magrpo.py \
   --config LLM_Collab_Writing/configs/magrpo_tldr_config.yaml
+
+python LLM_Collab_Writing/train_madpo.py \
+  --config LLM_Collab_Writing/configs/madpo_tldr_config.yaml
+
+python LLM_Collab_Writing/train_marlhf_iter.py \
+  --config LLM_Collab_Writing/configs/marlhf_iter_tldr_config.yaml
 ```
 
 Override any configuration value inline with `--override`:
@@ -49,7 +55,16 @@ python LLM_Collab_Writing/train_magrpo.py \
 
 ### Single Turn
 
-Writing runs are strictly single-turn. Both training entrypoints enforce `num_turns=1`; configs that specify other values will raise an error.
+Writing runs are strictly single-turn. All training entrypoints enforce
+`num_turns=1`; configs that specify other values raise an error.
+
+### Preference Training
+
+MADPO and MARLHF are available through `train_madpo.py` and `train_marlhf.py`.
+Their iterative variants use `train_madpo_iter.py` and `train_marlhf_iter.py`.
+The iterative configs support current, history-checkpoint, local-model, and API
+comparators independently from the current, nearest-k, all-history, and
+lambda-decay replay modes.
 
 ### Formatters
 
