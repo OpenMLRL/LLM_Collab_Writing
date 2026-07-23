@@ -12,8 +12,8 @@ agents: null
 dataset:
   name: trl-lib/tldr
   type: tldr
-  train_split: train[:150]
-  eval_split: test[:1000]
+  train_split: train[:200]
+  eval_split: test[:200]
 
 tokenizer:
   padding_side: left
@@ -31,7 +31,7 @@ marlhf:
   - cuda:0
   num_agents: 2
   num_turns: 1
-  num_train_epochs: 2
+  num_train_epochs: 16
   agent_learning_rate: 5.0e-06
   logging_steps: 50
   num_generations: 4
@@ -45,7 +45,7 @@ marlhf:
   reward_model_name: null
   reward_model_device: cuda:0
   reward_learning_rate: 1.0e-05
-  reward_num_train_epochs: 2
+  reward_num_train_epochs: 4
   reward_train_batch_size: 4
   reward_max_length: 1024
   reward_freeze_backbone: false
@@ -57,7 +57,7 @@ marlhf:
   train_batch_size: 4
   advantage_normalization: true
   eval_interval: 20
-  eval_num_samples: 4
+  eval_num_samples: 200
   eval_batch_size: 1
 
 reward_processor:
