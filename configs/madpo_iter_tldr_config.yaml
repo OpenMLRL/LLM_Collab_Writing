@@ -12,8 +12,8 @@ agents: null
 dataset:
   name: trl-lib/tldr
   type: tldr
-  train_split: train[:200]
-  eval_split: test[:200]
+  train_split: train[:250]
+  eval_split: test[:250]
 
 tokenizer:
   padding_side: left
@@ -38,7 +38,7 @@ madpo_iter:
   preference_replay_sample_size: null
   log_reward_distribution: false
   policy_checkpoint_dir: null
-  num_train_epochs: 2
+  num_train_epochs: 1
   agent_learning_rate: 5.0e-06
   logging_steps: 50
   preference_num_candidates: 20
@@ -68,7 +68,7 @@ madpo_iter:
   train_batch_size: 4
   advantage_normalization: true
   eval_interval: 20
-  eval_num_samples: 200
+  eval_num_samples: 250
   eval_batch_size: 1
 
 reward_processor:
