@@ -12,8 +12,8 @@ agents: null
 dataset:
   name: trl-lib/tldr
   type: tldr
-  train_split: train[:250]
-  eval_split: test[:250]
+  train_split: train[:160]
+  eval_split: test[:160]
 
 tokenizer:
   padding_side: left
@@ -48,7 +48,7 @@ madpo:
   train_batch_size: 4
   advantage_normalization: true
   eval_interval: 20
-  eval_num_samples: 250
+  eval_num_samples: 160
   eval_batch_size: 1
 
 reward_processor:
