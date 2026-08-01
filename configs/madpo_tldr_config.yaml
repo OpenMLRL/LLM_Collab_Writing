@@ -48,8 +48,8 @@ madpo:
   train_batch_size: 4
   advantage_normalization: true
   eval_interval: 20
-  eval_num_samples: 250
-  eval_batch_size: 1
+  eval_num_samples: 64
+  eval_batch_size: 2
 
 reward_processor:
   enabled: true
