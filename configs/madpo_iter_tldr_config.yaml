@@ -39,7 +39,7 @@ madpo_iter:
   log_reward_distribution: false
   policy_checkpoint_dir: null
   num_train_epochs: 1
-  agent_learning_rate: 5.0e-06
+  agent_learning_rate: 8.0e-06
   logging_steps: 50
   preference_num_candidates: 20
   comparator_policy: current

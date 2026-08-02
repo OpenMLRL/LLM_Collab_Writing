@@ -32,7 +32,7 @@ marlhf:
   num_agents: 2
   num_turns: 1
   num_train_epochs: 8
-  agent_learning_rate: 5.0e-06
+  agent_learning_rate: 8.0e-06
   logging_steps: 50
   num_generations: 4
   preference_num_candidates: 80
