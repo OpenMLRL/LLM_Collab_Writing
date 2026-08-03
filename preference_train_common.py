@@ -14,6 +14,7 @@ from transformers import AutoTokenizer
 
 from comlrl.utils.reward_processor import RewardProcessors
 from config import Config
+from centralized_comparator import get_writing_centralized_comparator_adapter
 from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
 from train_magrpo import (
     get_eval_logging,
@@ -176,6 +177,10 @@ def run_preference_training(
         "args": trainer_args,
         **eval_logging,
     }
+    if hasattr(trainer_args, "comparator_generation_mode"):
+        trainer_kwargs["centralized_comparator_adapter"] = (
+            get_writing_centralized_comparator_adapter(dataset_type)
+        )
 
     if algorithm_name.lower() in {"marlhf", "marlhf_iter"}:
         trainer_kwargs["metrics_callback"] = build_ac_writing_metrics_callback(
