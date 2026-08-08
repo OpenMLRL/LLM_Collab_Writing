@@ -36,7 +36,7 @@ madpo_iter:
   preference_replay_k: null
   preference_replay_lambda: null
   preference_replay_sample_size: null
-  log_reward_distribution: false
+  log_reward_distribution: true
   policy_checkpoint_dir: null
   num_train_epochs: 1
   agent_learning_rate: 5.0e-06
@@ -87,4 +87,3 @@ wandb:
   - multi-agent
   - turns_1
   - iterative
-
