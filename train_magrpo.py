@@ -25,6 +25,7 @@ from loggers.tldr_logger import (
 )
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
+from comlrl.utils import set_reward_range
 from comlrl.utils.reward_processor import RewardProcessors
 from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
 
@@ -212,7 +213,7 @@ def make_reward_function(
         completions2 = agent_completions[1]
         return base_reward(completions1, completions2)
 
-    return reward_fn
+    return set_reward_range(reward_fn, 0.0, 3.0)
 
 
 def infer_dataset_type(dataset_name: str, explicit_type: Optional[str]) -> str:
