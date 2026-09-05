@@ -83,6 +83,15 @@ Rewards reuse the level-based metrics from the paper:
 
 The same functions back evaluation loggers for the baselines.
 
+### Centralized MAGRPO
+
+`train_magrpo.py --config configs/magrpo_tldr_config.yaml --override magrpo.collaboration_mode=centralized magrpo.num_turns=1`
+trains one joint-input/joint-output actor using the task reward, without a
+comparator, preference dataset, or learned reward model. The existing writing
+adapter splits role outputs for rewards and evaluation. `max_new_tokens` is the
+total joint-response budget. The default remains decentralized; arXiv uses the
+same switch with its own configuration and adapter.
+
 ### Centralized Preference Collaboration
 
 MADPO, MARLHF, and their iterative variants can train one model to generate both
