@@ -78,8 +78,13 @@ def run_preference_training(
             isinstance(name, str) for name in agent_names
         ):
             raise ValueError("agents must be a list of model names.")
-        if len(agent_names) != num_agents:
-            raise ValueError(f"agents must contain exactly {num_agents} model names.")
+        actor_count = (
+            1
+            if trainer_config.get("collaboration_mode") == "centralized"
+            else num_agents
+        )
+        if len(agent_names) != actor_count:
+            raise ValueError(f"agents must contain exactly {actor_count} model names.")
         agent_names = [str(name) for name in agent_names]
 
     output_base_dir = str(config.get("output.base_dir", f"output_{section_name}"))
@@ -177,7 +182,10 @@ def run_preference_training(
         "args": trainer_args,
         **eval_logging,
     }
-    if hasattr(trainer_args, "comparator_generation_mode"):
+    if (
+        hasattr(trainer_args, "comparator_generation_mode")
+        or trainer_args.collaboration_mode == "centralized"
+    ):
         trainer_kwargs["centralized_comparator_adapter"] = (
             get_writing_centralized_comparator_adapter(dataset_type)
         )
