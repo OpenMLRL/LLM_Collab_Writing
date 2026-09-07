@@ -120,3 +120,8 @@ change.
 ### Logging
 
 Evaluation wrappers adapt the original logging utilities to the unified `MAGRPOTrainer` API, yielding aggregated metrics such as token ratios, transition coverage, and gated vs. ungated rewards. Weights & Biases configs mirror the code-generation project; set `wandb.project`, `wandb.entity`, and `wandb.name` in YAML or via overrides.
+
+## Slurm runtime cache
+
+Training launchers isolate unset CUDA JIT caches per job on node-local storage.
+Update CoMLRL alongside this checkout; see the [runtime cache guide](docs/runtime_cache.md).

@@ -243,6 +243,10 @@ def _set_seed(seed: int) -> None:
 
 def main():
     """Configure and launch MAGRPO training for writing datasets."""
+    from comlrl.runtime import configure_job_cuda_cache
+
+    configure_job_cuda_cache()
+
     parser = argparse.ArgumentParser(
         description="Train MAGRPO for collaborative writing tasks."
     )
