@@ -156,6 +156,10 @@ def _set_seed(seed: int) -> None:
 
 
 def main() -> None:
+    from comlrl.runtime import configure_job_cuda_cache
+
+    configure_job_cuda_cache()
+
     parser = argparse.ArgumentParser(
         description="Train single-agent Actor-Critic for writing tasks."
     )

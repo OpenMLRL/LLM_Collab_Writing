@@ -150,6 +150,10 @@ def get_formatter(dataset_type: str) -> Callable[[Dict[str, Any]], str]:
 
 def main():
     """Run single-agent writing training using MAGRPO in GRPO mode."""
+    from comlrl.runtime import configure_job_cuda_cache
+
+    configure_job_cuda_cache()
+
     parser = argparse.ArgumentParser(
         description="Train GRPO-style single agent for collaborative writing tasks."
     )
