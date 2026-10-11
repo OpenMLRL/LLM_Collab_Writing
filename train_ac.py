@@ -15,7 +15,7 @@ import wandb
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
-from config import Config, add_config_args, parse_overrides
+from config import Config, add_config_args, parse_overrides, run_id
 from comlrl.trainers.actor_critic import IACConfig, IACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from rewards.arxiv_rewards import arxiv_combined_reward
@@ -156,10 +156,6 @@ def _set_seed(seed: int) -> None:
 
 
 def main() -> None:
-    from comlrl.runtime import configure_job_cuda_cache
-
-    configure_job_cuda_cache()
-
     parser = argparse.ArgumentParser(
         description="Train single-agent Actor-Critic for writing tasks."
     )
@@ -188,8 +184,7 @@ def main() -> None:
 
     output_base_dir = config.get("output.base_dir", "./output")
     output_verbose = bool(config.get("output.verbose", False))
-    slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
-    output_dir = os.path.join(output_base_dir, f"ac_job_{slurm_job_id}")
+    output_dir = os.path.join(output_base_dir, f"ac_{run_id()}")
     os.makedirs(output_dir, exist_ok=True)
 
     train_split = config.get("dataset.train_split")

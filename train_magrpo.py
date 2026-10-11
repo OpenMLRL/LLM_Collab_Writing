@@ -11,7 +11,7 @@ import random
 from typing import Any, Callable, Dict, List, Optional
 
 import torch
-from config import Config, add_config_args, parse_overrides
+from config import Config, add_config_args, parse_overrides, run_id
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
@@ -246,10 +246,6 @@ def _set_seed(seed: int) -> None:
 
 def main():
     """Configure and launch MAGRPO training for writing datasets."""
-    from comlrl.runtime import configure_job_cuda_cache
-
-    configure_job_cuda_cache()
-
     parser = argparse.ArgumentParser(
         description="Train MAGRPO for collaborative writing tasks."
     )
@@ -271,8 +267,7 @@ def main():
 
     output_base_dir = config.get("output.base_dir", "./output")
     output_verbose = bool(config.get("output.verbose", False))
-    slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
-    output_dir = os.path.join(output_base_dir, f"job_{slurm_job_id}")
+    output_dir = os.path.join(output_base_dir, run_id())
     os.makedirs(output_dir, exist_ok=True)
 
     train_split = config.get("dataset.train_split")
