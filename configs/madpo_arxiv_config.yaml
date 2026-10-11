@@ -30,6 +30,7 @@ madpo:
   agent_devices:
   - cuda:0
   num_agents: 2
+  collaboration_mode: decentralized
   num_turns: 1
   num_train_epochs: 1
   agent_learning_rate: 5.0e-06

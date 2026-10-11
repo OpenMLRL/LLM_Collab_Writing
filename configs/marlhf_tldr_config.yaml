@@ -30,6 +30,7 @@ marlhf:
   agent_devices:
   - cuda:0
   num_agents: 2
+  collaboration_mode: decentralized
   num_turns: 1
   num_train_epochs: 8
   agent_learning_rate: 8.0e-06

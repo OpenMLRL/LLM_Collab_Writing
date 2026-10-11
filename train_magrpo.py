@@ -27,7 +27,12 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils import set_reward_range
 from comlrl.utils.reward_processor import RewardProcessors
-from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
+from comlrl.trainers.reinforce import (
+    MAGRPOConfig,
+    MAGRPOTrainer,
+    CentralizedMAGRPOConfig,
+    CentralizedMAGRPOTrainer,
+)
 
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
@@ -274,6 +279,12 @@ def main():
     eval_split = config.get("dataset.eval_split")
 
     magrpo_cfg = config.get_section("magrpo")
+    collaboration_mode = magrpo_cfg.get("collaboration_mode", "decentralized")
+    if collaboration_mode not in {"decentralized", "centralized"}:
+        raise ValueError("magrpo.collaboration_mode must be decentralized or centralized.")
+    centralized = collaboration_mode == "centralized"
+    args_cls = CentralizedMAGRPOConfig if centralized else MAGRPOConfig
+    trainer_cls = CentralizedMAGRPOTrainer if centralized else MAGRPOTrainer
     seed_value = int(config.get("seed", magrpo_cfg.get("seed", 42)))
     _set_seed(seed_value)
 
@@ -293,11 +304,17 @@ def main():
         agents_config = {}
     else:
         raise ValueError("agents must be a list of model names.")
-    num_agents = agents_config.get("num_agents", 2)
+    num_agents = (
+        magrpo_cfg.get("num_agents", 2)
+        if centralized
+        else agents_config.get("num_agents", 2)
+    )
     if num_agents != 2:
         raise ValueError(
             f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
         )
+    if centralized and agent_names is not None and len(agent_names) != 1:
+        raise ValueError("Centralized collaboration requires exactly one actor model.")
     tokenizer_source = agent_names[0] if agent_names else model_name
     if not tokenizer_source:
         raise ValueError("agent_model.name or agents must be provided.")
@@ -326,7 +343,7 @@ def main():
     top_p = model_config.top_p
     top_k = model_config.top_k
 
-    magrpo_args = MAGRPOConfig(
+    magrpo_args = args_cls(
         num_turns=1,
         num_train_epochs=magrpo_cfg.get("num_train_epochs", 2),
         agent_learning_rate=magrpo_cfg.get("agent_learning_rate", 5e-6),
@@ -405,7 +422,9 @@ def main():
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
     trainer_kwargs: Dict[str, Any] = {
-        "agent_model": model_name or None,
+        "agent_model": (
+            None if centralized and agent_names is not None else model_name or None
+        ),
         "agents": agent_names,
         "num_agents": num_agents,
         "model_config": {
@@ -422,11 +441,17 @@ def main():
         "dataset_type": dataset_type,
     }
     trainer_kwargs.update(logging_wrappers)
+    if centralized:
+        from centralized_comparator import get_writing_centralized_comparator_adapter
+
+        trainer_kwargs["centralized_adapter"] = (
+            get_writing_centralized_comparator_adapter(dataset_type)
+        )
 
     if reward_processor is not None:
         trainer_kwargs["reward_processor"] = reward_processor
 
-    trainer = MAGRPOTrainer(**trainer_kwargs)
+    trainer = trainer_cls(**trainer_kwargs)
     trainer.verbose = bool(output_verbose)
     trainer.train()
 
