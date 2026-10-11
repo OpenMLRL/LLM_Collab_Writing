@@ -30,7 +30,6 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 
 
-
 def arxiv_single_formatter(example: Dict[str, Any]) -> str:
     """Prompt the single agent to produce two coordinated paragraphs for arXiv."""
     abstract = example.get("abstract_text", "")
@@ -246,8 +245,10 @@ def main() -> None:
 
     # Propagate verbosity to reward modules
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatter = get_formatter(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -291,7 +292,9 @@ def main() -> None:
             num_agents=1,
             num_generations=ac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,
-            parallel_training=str(ac_cfg.get("parallel_training", "none")).strip().lower(),
+            parallel_training=str(ac_cfg.get("parallel_training", "none"))
+            .strip()
+            .lower(),
             agent_devices=ac_cfg.get("agent_devices", None),
             critic_devices=ac_cfg.get("critic_devices", None),
             critic_value_head_hidden_dim=ac_cfg.get("critic_value_head_hidden_dim"),
@@ -310,9 +313,7 @@ def main() -> None:
         model_config={
             "model_kwargs": model_kwargs,
             "critic_model_kwargs": (
-                critic_model_kwargs
-                if critic_config is not None
-                else model_kwargs
+                critic_model_kwargs if critic_config is not None else model_kwargs
             ),
         },
         wandb_config=_build_wandb_config(config, output_dir, model_name, dataset_type),

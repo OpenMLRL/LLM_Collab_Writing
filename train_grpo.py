@@ -27,6 +27,8 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils.reward_processor import RewardProcessors
 from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
+
+
 def arxiv_single_formatter(example: Dict[str, Any]) -> str:
     """Prompt the single agent to produce two coordinated paragraphs for arXiv."""
     abstract = example.get("abstract_text", "")
@@ -230,11 +232,11 @@ def main():
         top_p=top_p,
         top_k=top_k,
         num_agents=1,
-        parallel_training=str(grpo_cfg.get("parallel_training", "none")).strip().lower(),
+        parallel_training=str(grpo_cfg.get("parallel_training", "none"))
+        .strip()
+        .lower(),
         agent_devices=grpo_cfg.get("agent_devices", None),
-        early_termination_threshold=grpo_cfg.get(
-            "early_termination_threshold", -0.2
-        ),
+        early_termination_threshold=grpo_cfg.get("early_termination_threshold", -0.2),
         eval_interval=grpo_cfg.get("eval_interval", 4),
         eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=grpo_cfg.get("eval_batch_size", 1),
@@ -246,8 +248,10 @@ def main():
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatter = get_formatter(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -314,7 +318,9 @@ def main():
     trainer.train()
 
     if config.get("output.save_final_model", True):
-        save_path = config.get("output.save_path", os.path.join(output_dir, "final_model"))
+        save_path = config.get(
+            "output.save_path", os.path.join(output_dir, "final_model")
+        )
         trainer.save_model(save_path)
         if output_verbose:
             print(f"Model saved to: {save_path}")

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import torch
+
 REPO_ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG = REPO_ROOT / "configs" / "magrpo_arxiv_config.yaml"
 COMLRL_ROOT = REPO_ROOT.parent / "CoMLRL"
@@ -140,7 +141,9 @@ def get_formatters(dataset_type: str) -> List[Callable[[Dict[str, Any]], str]]:
 
     dataset_key = dataset_type.lower()
     if dataset_key not in formatters_map:
-        raise ValueError(f"Unsupported dataset type '{dataset_type}' for writing tasks.")
+        raise ValueError(
+            f"Unsupported dataset type '{dataset_type}' for writing tasks."
+        )
 
     return formatters_map[dataset_key]
 
@@ -178,7 +181,9 @@ def _adapt_eval_aggregator(
 ) -> Callable[..., Dict[str, float]]:
     """Wrap aggregators so they match the MAGRPO signature (accepting num_turns)."""
 
-    def aggregator(metrics: List[Dict[str, Any]], num_turns: int = 1) -> Dict[str, float]:
+    def aggregator(
+        metrics: List[Dict[str, Any]], num_turns: int = 1
+    ) -> Dict[str, float]:
         return base_aggregator(metrics)
 
     return aggregator
@@ -282,7 +287,9 @@ def main():
     magrpo_cfg = config.get_section("magrpo")
     collaboration_mode = magrpo_cfg.get("collaboration_mode", "decentralized")
     if collaboration_mode not in {"decentralized", "centralized"}:
-        raise ValueError("magrpo.collaboration_mode must be decentralized or centralized.")
+        raise ValueError(
+            "magrpo.collaboration_mode must be decentralized or centralized."
+        )
     centralized = collaboration_mode == "centralized"
     args_cls = CentralizedMAGRPOConfig if centralized else MAGRPOConfig
     trainer_cls = CentralizedMAGRPOTrainer if centralized else MAGRPOTrainer
@@ -355,11 +362,11 @@ def main():
         top_p=top_p,
         top_k=top_k,
         num_agents=num_agents,
-        parallel_training=str(magrpo_cfg.get("parallel_training", "none")).strip().lower(),
+        parallel_training=str(magrpo_cfg.get("parallel_training", "none"))
+        .strip()
+        .lower(),
         agent_devices=magrpo_cfg.get("agent_devices", ["cuda:0"]),
-        early_termination_threshold=magrpo_cfg.get(
-            "early_termination_threshold", -0.2
-        ),
+        early_termination_threshold=magrpo_cfg.get("early_termination_threshold", -0.2),
         rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 1),
         train_batch_size=magrpo_cfg.get("train_batch_size", 1),
         advantage_normalization=magrpo_cfg.get("advantage_normalization", True),
@@ -372,8 +379,10 @@ def main():
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -456,7 +465,9 @@ def main():
     trainer.train()
 
     if config.get("output.save_final_model", True):
-        save_path = config.get("output.save_path", os.path.join(output_dir, "final_model"))
+        save_path = config.get(
+            "output.save_path", os.path.join(output_dir, "final_model")
+        )
         trainer.save_model(save_path)
         if output_verbose:
             print(f"Model saved to: {save_path}")

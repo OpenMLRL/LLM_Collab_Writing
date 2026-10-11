@@ -32,7 +32,6 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 
 
-
 def background_agent_formatter(example: Dict[str, Any]) -> str:
     """Formatter for the background agent (Agent 1) for the arXiv dataset."""
     abstract = example.get("abstract_text", "")
@@ -129,7 +128,9 @@ def get_formatters(dataset_type: str) -> List[Callable[[Dict[str, Any]], str]]:
 
     dataset_key = dataset_type.lower()
     if dataset_key not in formatters_map:
-        raise ValueError(f"Unsupported dataset type '{dataset_type}' for writing tasks.")
+        raise ValueError(
+            f"Unsupported dataset type '{dataset_type}' for writing tasks."
+        )
 
     return formatters_map[dataset_key]
 
@@ -270,8 +271,10 @@ def main() -> None:
 
     # Propagate verbosity to reward modules
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -316,7 +319,9 @@ def main() -> None:
             top_k=top_k,
             num_agents=num_agents,
             num_generations=maac_cfg.get("num_generations", 1),
-            parallel_training=str(maac_cfg.get("parallel_training", "none")).strip().lower(),
+            parallel_training=str(maac_cfg.get("parallel_training", "none"))
+            .strip()
+            .lower(),
             agent_devices=maac_cfg.get("agent_devices", ["cuda:0"]),
             critic_devices=maac_cfg.get("critic_devices", ["cuda:0"]),
             discount=maac_cfg.get("discount", 0.9),

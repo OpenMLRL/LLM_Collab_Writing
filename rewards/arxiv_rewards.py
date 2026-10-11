@@ -36,8 +36,10 @@ def arxiv_combined_reward(completions1, completions2):
     import re
 
     if not VERBOSE:
+
         def print(*args, **kwargs):  # type: ignore
             return None
+
     else:
         print = builtins.print  # type: ignore
 
