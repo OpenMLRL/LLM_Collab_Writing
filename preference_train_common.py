@@ -149,10 +149,10 @@ def run_preference_training(
         ],
     )
     wandb_config = {
-        "project": wandb_section.get("project", "comlrl"),
+        "project": wandb_section.get("project"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": wandb_name,
-        "dir": wandb_section.get("dir", output_base_dir),
+        "dir": wandb_section.get("dir", output_dir),
         "output_dir": output_dir,
         "tags": list(tags),
         "config_sections": {
@@ -174,7 +174,6 @@ def run_preference_training(
         },
         "train_dataset": train_dataset,
         "eval_dataset": eval_dataset,
-        "dataset_type": dataset_type,
         "reward_func": reward_func,
         "formatters": formatters,
         "wandb_config": wandb_config,

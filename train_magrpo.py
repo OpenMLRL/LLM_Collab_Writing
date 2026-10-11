@@ -8,9 +8,18 @@ formatters, rewards, and evaluation logging for writing-focused datasets.
 import argparse
 import os
 import random
+import sys
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import torch
+REPO_ROOT = Path(__file__).resolve().parent
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "magrpo_arxiv_config.yaml"
+COMLRL_ROOT = REPO_ROOT.parent / "CoMLRL"
+for path in (COMLRL_ROOT, REPO_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
 from config import Config, add_config_args, parse_overrides, run_id
 from datasets import load_dataset
 from transformers import AutoTokenizer
@@ -252,10 +261,7 @@ def main():
     add_config_args(parser)
     args = parser.parse_args()
 
-    if not args.config:
-        raise ValueError("Please provide a configuration file via --config.")
-
-    config = Config(args.config)
+    config = Config(args.config or str(DEFAULT_CONFIG))
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
@@ -386,10 +392,10 @@ def main():
         config.update({"output": {"verbose": False}})
 
     wandb_config = {
-        "project": wandb_section.get("project", "mlrl"),
+        "project": wandb_section.get("project"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": wandb_name,
-        "dir": wandb_section.get("dir", "./wandb"),
+        "dir": wandb_section.get("dir", output_dir),
         "tags": wandb_section.get("tags", ["magrpo", dataset_type]),
         "config_sections": {
             "dataset": config.get_section("dataset"),
@@ -433,7 +439,6 @@ def main():
         "eval_dataset": eval_dataset,
         "tokenizer": tokenizers if agent_names else tokenizer,
         "wandb_config": wandb_config,
-        "dataset_type": dataset_type,
     }
     trainer_kwargs.update(logging_wrappers)
     if centralized:

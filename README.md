@@ -22,6 +22,9 @@ conda install -c conda-forge comlrl
 # Install PyTorch compatible with your device
 ```
 
+A `CoMLRL/` checkout next to this repository takes precedence over the
+installed package, so local CoMLRL changes are used without reinstalling.
+
 ## Benchmarks
 
 - ArXiv Abstract Expansion: `OpenMLRL/arXiv_abstract` (train[:1000], val[:1000])
@@ -43,6 +46,7 @@ python LLM_Collab_Writing/train_marlhf_iter.py \
   --config LLM_Collab_Writing/configs/marlhf_iter_tldr_config.yaml
 ```
 
+Without `--config`, each script uses its default config in `configs/`.
 Override any configuration value inline with `--override`:
 
 ```bash

@@ -8,6 +8,7 @@ formatters and reward functions.
 import argparse
 import os
 import random
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -15,6 +16,13 @@ import torch
 import wandb
 from datasets import load_dataset
 from transformers import AutoTokenizer
+
+REPO_ROOT = Path(__file__).resolve().parent
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "iac_arxiv_config.yaml"
+COMLRL_ROOT = REPO_ROOT.parent / "CoMLRL"
+for path in (COMLRL_ROOT, REPO_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from config import Config, add_config_args, parse_overrides, run_id
 from comlrl.trainers.actor_critic import IACConfig, IACTrainer
@@ -174,14 +182,7 @@ def main() -> None:
     add_config_args(parser)
     args = parser.parse_args()
 
-    if args.config:
-        config = Config(args.config)
-    else:
-        default_config_path = Path(__file__).parent / "configs" / "iac_arxiv_config.yaml"
-        if default_config_path.exists():
-            config = Config(str(default_config_path))
-        else:
-            raise ValueError("Please provide a configuration file using --config.")
+    config = Config(args.config or str(DEFAULT_CONFIG))
 
     if args.override:
         overrides = parse_overrides(args.override)
@@ -196,7 +197,7 @@ def main() -> None:
 
     output_base_dir = config.get("output.base_dir", "./output")
     output_verbose = bool(config.get("output.verbose", False))
-    output_dir = os.path.join(output_base_dir, f"iac_{run_id()}")
+    output_dir = os.path.join(output_base_dir, run_id())
     os.makedirs(output_dir, exist_ok=True)
 
     train_split = config.get("dataset.train_split")
@@ -346,7 +347,7 @@ def main() -> None:
                 else model_kwargs
             ),
         },
-        wandb_config=_build_wandb_config(config, model_name, dataset_type),
+        wandb_config=_build_wandb_config(config, output_dir, model_name, dataset_type),
         critic_model=critic_name,
         critics=critics,
     )
@@ -372,7 +373,7 @@ def main() -> None:
 
 
 def _build_wandb_config(
-    config: Config, model_name: str, dataset_type: str
+    config: Config, output_dir: str, model_name: str, dataset_type: str
 ) -> Dict[str, Any]:
     wandb_section = config.get_section("wandb")
     iac_section = config.get_section("iac")
@@ -387,10 +388,10 @@ def _build_wandb_config(
     tags = wandb_section.get("tags", ["iac", dataset_type, "multi-agent", "turns_1"])
 
     return {
-        "project": wandb_section.get("project", "comlrl"),
+        "project": wandb_section.get("project"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": wandb_name,
-        "dir": wandb_section.get("dir", "./wandb"),
+        "dir": wandb_section.get("dir", output_dir),
         "tags": tags,
         "config_sections": {
             "dataset": config.get_section("dataset"),
