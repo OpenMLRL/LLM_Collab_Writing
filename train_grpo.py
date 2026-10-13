@@ -8,9 +8,18 @@ writing datasets (arXiv abstracts and TLDR summaries).
 
 import argparse
 import os
+import sys
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from config import Config, add_config_args, parse_overrides
+REPO_ROOT = Path(__file__).resolve().parent
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "grpo_arxiv_config.yaml"
+COMLRL_ROOT = REPO_ROOT.parent / "CoMLRL"
+for path in (COMLRL_ROOT, REPO_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+from config import Config, add_config_args, parse_overrides, run_id
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -18,6 +27,8 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils.reward_processor import RewardProcessors
 from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
+
+
 def arxiv_single_formatter(example: Dict[str, Any]) -> str:
     """Prompt the single agent to produce two coordinated paragraphs for arXiv."""
     abstract = example.get("abstract_text", "")
@@ -150,20 +161,13 @@ def get_formatter(dataset_type: str) -> Callable[[Dict[str, Any]], str]:
 
 def main():
     """Run single-agent writing training using MAGRPO in GRPO mode."""
-    from comlrl.runtime import configure_job_cuda_cache
-
-    configure_job_cuda_cache()
-
     parser = argparse.ArgumentParser(
         description="Train GRPO-style single agent for collaborative writing tasks."
     )
     add_config_args(parser)
     args = parser.parse_args()
 
-    if not args.config:
-        raise ValueError("Please provide a configuration file via --config.")
-
-    config = Config(args.config)
+    config = Config(args.config or str(DEFAULT_CONFIG))
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
@@ -176,8 +180,7 @@ def main():
 
     output_base_dir = config.get("output.base_dir", "./output")
     output_verbose = bool(config.get("output.verbose", False))
-    slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
-    output_dir = os.path.join(output_base_dir, f"job_{slurm_job_id}")
+    output_dir = os.path.join(output_base_dir, run_id())
     os.makedirs(output_dir, exist_ok=True)
 
     train_split = config.get("dataset.train_split")
@@ -229,11 +232,11 @@ def main():
         top_p=top_p,
         top_k=top_k,
         num_agents=1,
-        parallel_training=str(grpo_cfg.get("parallel_training", "none")).strip().lower(),
+        parallel_training=str(grpo_cfg.get("parallel_training", "none"))
+        .strip()
+        .lower(),
         agent_devices=grpo_cfg.get("agent_devices", None),
-        early_termination_threshold=grpo_cfg.get(
-            "early_termination_threshold", -0.2
-        ),
+        early_termination_threshold=grpo_cfg.get("early_termination_threshold", -0.2),
         eval_interval=grpo_cfg.get("eval_interval", 4),
         eval_num_samples=grpo_cfg.get("eval_num_samples", 4),
         eval_batch_size=grpo_cfg.get("eval_batch_size", 1),
@@ -245,8 +248,10 @@ def main():
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatter = get_formatter(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -265,10 +270,10 @@ def main():
         config.update({"output": {"verbose": False}})
 
     wandb_config = {
-        "project": wandb_section.get("project", "mlrl"),
+        "project": wandb_section.get("project"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": wandb_name,
-        "dir": wandb_section.get("dir", "./wandb"),
+        "dir": wandb_section.get("dir", output_dir),
         "tags": wandb_section.get("tags", ["grpo", dataset_type, "single-agent"]),
         "config_sections": {
             "dataset": config.get_section("dataset"),
@@ -303,7 +308,6 @@ def main():
         "eval_dataset": eval_dataset,
         "tokenizer": tokenizer,
         "wandb_config": wandb_config,
-        "dataset_type": dataset_type,
     }
 
     if reward_processor is not None:
@@ -314,7 +318,9 @@ def main():
     trainer.train()
 
     if config.get("output.save_final_model", True):
-        save_path = config.get("output.save_path", os.path.join(output_dir, "final_model"))
+        save_path = config.get(
+            "output.save_path", os.path.join(output_dir, "final_model")
+        )
         trainer.save_model(save_path)
         if output_verbose:
             print(f"Model saved to: {save_path}")

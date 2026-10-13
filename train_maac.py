@@ -8,6 +8,7 @@ formatters and reward functions.
 import argparse
 import os
 import random
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -16,13 +17,19 @@ import wandb
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
-from config import Config, add_config_args, parse_overrides
+REPO_ROOT = Path(__file__).resolve().parent
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "maac_arxiv_config.yaml"
+COMLRL_ROOT = REPO_ROOT.parent / "CoMLRL"
+for path in (COMLRL_ROOT, REPO_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+from config import Config, add_config_args, parse_overrides, run_id
 from comlrl.trainers.actor_critic import MAACConfig, MAACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
-
 
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
@@ -121,7 +128,9 @@ def get_formatters(dataset_type: str) -> List[Callable[[Dict[str, Any]], str]]:
 
     dataset_key = dataset_type.lower()
     if dataset_key not in formatters_map:
-        raise ValueError(f"Unsupported dataset type '{dataset_type}' for writing tasks.")
+        raise ValueError(
+            f"Unsupported dataset type '{dataset_type}' for writing tasks."
+        )
 
     return formatters_map[dataset_key]
 
@@ -168,24 +177,13 @@ def _set_seed(seed: int) -> None:
 
 
 def main() -> None:
-    from comlrl.runtime import configure_job_cuda_cache
-
-    configure_job_cuda_cache()
-
     parser = argparse.ArgumentParser(
         description="Train MAAC for collaborative writing tasks."
     )
     add_config_args(parser)
     args = parser.parse_args()
 
-    if args.config:
-        config = Config(args.config)
-    else:
-        default_config_path = Path(__file__).parent / "configs" / "maac_arxiv_config.yaml"
-        if default_config_path.exists():
-            config = Config(str(default_config_path))
-        else:
-            raise ValueError("Please provide a configuration file using --config.")
+    config = Config(args.config or str(DEFAULT_CONFIG))
 
     if args.override:
         overrides = parse_overrides(args.override)
@@ -200,8 +198,7 @@ def main() -> None:
 
     output_base_dir = config.get("output.base_dir", "./output")
     output_verbose = bool(config.get("output.verbose", False))
-    slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
-    output_dir = os.path.join(output_base_dir, f"maac_job_{slurm_job_id}")
+    output_dir = os.path.join(output_base_dir, run_id())
     os.makedirs(output_dir, exist_ok=True)
 
     train_split = config.get("dataset.train_split")
@@ -274,8 +271,10 @@ def main() -> None:
 
     # Propagate verbosity to reward modules
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -320,7 +319,9 @@ def main() -> None:
             top_k=top_k,
             num_agents=num_agents,
             num_generations=maac_cfg.get("num_generations", 1),
-            parallel_training=str(maac_cfg.get("parallel_training", "none")).strip().lower(),
+            parallel_training=str(maac_cfg.get("parallel_training", "none"))
+            .strip()
+            .lower(),
             agent_devices=maac_cfg.get("agent_devices", ["cuda:0"]),
             critic_devices=maac_cfg.get("critic_devices", ["cuda:0"]),
             discount=maac_cfg.get("discount", 0.9),
@@ -339,7 +340,7 @@ def main() -> None:
             "model_kwargs": model_kwargs,
             "critic_model_kwargs": critic_model_kwargs,
         },
-        wandb_config=_build_wandb_config(config, model_name, dataset_type),
+        wandb_config=_build_wandb_config(config, output_dir, model_name, dataset_type),
         critic_model=critic_name,
         critics=critics,
     )
@@ -365,7 +366,7 @@ def main() -> None:
 
 
 def _build_wandb_config(
-    config: Config, model_name: str, dataset_type: str
+    config: Config, output_dir: str, model_name: str, dataset_type: str
 ) -> Dict[str, Any]:
     wandb_section = config.get_section("wandb")
     maac_section = config.get_section("maac")
@@ -380,10 +381,10 @@ def _build_wandb_config(
     tags = wandb_section.get("tags", ["maac", dataset_type, "multi-agent", "turns_1"])
 
     return {
-        "project": wandb_section.get("project", "comlrl"),
+        "project": wandb_section.get("project"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": wandb_name,
-        "dir": wandb_section.get("dir", "./wandb"),
+        "dir": wandb_section.get("dir", output_dir),
         "tags": tags,
         "config_sections": {
             "dataset": config.get_section("dataset"),

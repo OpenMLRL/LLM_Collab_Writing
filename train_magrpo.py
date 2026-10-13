@@ -8,10 +8,20 @@ formatters, rewards, and evaluation logging for writing-focused datasets.
 import argparse
 import os
 import random
+import sys
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 import torch
-from config import Config, add_config_args, parse_overrides
+
+REPO_ROOT = Path(__file__).resolve().parent
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "magrpo_arxiv_config.yaml"
+COMLRL_ROOT = REPO_ROOT.parent / "CoMLRL"
+for path in (COMLRL_ROOT, REPO_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+from config import Config, add_config_args, parse_overrides, run_id
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
@@ -27,7 +37,12 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils import set_reward_range
 from comlrl.utils.reward_processor import RewardProcessors
-from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
+from comlrl.trainers.reinforce import (
+    MAGRPOConfig,
+    MAGRPOTrainer,
+    CentralizedMAGRPOConfig,
+    CentralizedMAGRPOTrainer,
+)
 
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
@@ -126,7 +141,9 @@ def get_formatters(dataset_type: str) -> List[Callable[[Dict[str, Any]], str]]:
 
     dataset_key = dataset_type.lower()
     if dataset_key not in formatters_map:
-        raise ValueError(f"Unsupported dataset type '{dataset_type}' for writing tasks.")
+        raise ValueError(
+            f"Unsupported dataset type '{dataset_type}' for writing tasks."
+        )
 
     return formatters_map[dataset_key]
 
@@ -164,7 +181,9 @@ def _adapt_eval_aggregator(
 ) -> Callable[..., Dict[str, float]]:
     """Wrap aggregators so they match the MAGRPO signature (accepting num_turns)."""
 
-    def aggregator(metrics: List[Dict[str, Any]], num_turns: int = 1) -> Dict[str, float]:
+    def aggregator(
+        metrics: List[Dict[str, Any]], num_turns: int = 1
+    ) -> Dict[str, float]:
         return base_aggregator(metrics)
 
     return aggregator
@@ -241,20 +260,13 @@ def _set_seed(seed: int) -> None:
 
 def main():
     """Configure and launch MAGRPO training for writing datasets."""
-    from comlrl.runtime import configure_job_cuda_cache
-
-    configure_job_cuda_cache()
-
     parser = argparse.ArgumentParser(
         description="Train MAGRPO for collaborative writing tasks."
     )
     add_config_args(parser)
     args = parser.parse_args()
 
-    if not args.config:
-        raise ValueError("Please provide a configuration file via --config.")
-
-    config = Config(args.config)
+    config = Config(args.config or str(DEFAULT_CONFIG))
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
@@ -266,14 +278,21 @@ def main():
 
     output_base_dir = config.get("output.base_dir", "./output")
     output_verbose = bool(config.get("output.verbose", False))
-    slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
-    output_dir = os.path.join(output_base_dir, f"job_{slurm_job_id}")
+    output_dir = os.path.join(output_base_dir, run_id())
     os.makedirs(output_dir, exist_ok=True)
 
     train_split = config.get("dataset.train_split")
     eval_split = config.get("dataset.eval_split")
 
     magrpo_cfg = config.get_section("magrpo")
+    collaboration_mode = magrpo_cfg.get("collaboration_mode", "decentralized")
+    if collaboration_mode not in {"decentralized", "centralized"}:
+        raise ValueError(
+            "magrpo.collaboration_mode must be decentralized or centralized."
+        )
+    centralized = collaboration_mode == "centralized"
+    args_cls = CentralizedMAGRPOConfig if centralized else MAGRPOConfig
+    trainer_cls = CentralizedMAGRPOTrainer if centralized else MAGRPOTrainer
     seed_value = int(config.get("seed", magrpo_cfg.get("seed", 42)))
     _set_seed(seed_value)
 
@@ -293,11 +312,17 @@ def main():
         agents_config = {}
     else:
         raise ValueError("agents must be a list of model names.")
-    num_agents = agents_config.get("num_agents", 2)
+    num_agents = (
+        magrpo_cfg.get("num_agents", 2)
+        if centralized
+        else agents_config.get("num_agents", 2)
+    )
     if num_agents != 2:
         raise ValueError(
             f"Writing experiments expect exactly 2 agents; received num_agents={num_agents}."
         )
+    if centralized and agent_names is not None and len(agent_names) != 1:
+        raise ValueError("Centralized collaboration requires exactly one actor model.")
     tokenizer_source = agent_names[0] if agent_names else model_name
     if not tokenizer_source:
         raise ValueError("agent_model.name or agents must be provided.")
@@ -326,7 +351,7 @@ def main():
     top_p = model_config.top_p
     top_k = model_config.top_k
 
-    magrpo_args = MAGRPOConfig(
+    magrpo_args = args_cls(
         num_turns=1,
         num_train_epochs=magrpo_cfg.get("num_train_epochs", 2),
         agent_learning_rate=magrpo_cfg.get("agent_learning_rate", 5e-6),
@@ -337,11 +362,11 @@ def main():
         top_p=top_p,
         top_k=top_k,
         num_agents=num_agents,
-        parallel_training=str(magrpo_cfg.get("parallel_training", "none")).strip().lower(),
+        parallel_training=str(magrpo_cfg.get("parallel_training", "none"))
+        .strip()
+        .lower(),
         agent_devices=magrpo_cfg.get("agent_devices", ["cuda:0"]),
-        early_termination_threshold=magrpo_cfg.get(
-            "early_termination_threshold", -0.2
-        ),
+        early_termination_threshold=magrpo_cfg.get("early_termination_threshold", -0.2),
         rollout_buffer_size=magrpo_cfg.get("rollout_buffer_size", 1),
         train_batch_size=magrpo_cfg.get("train_batch_size", 1),
         advantage_normalization=magrpo_cfg.get("advantage_normalization", True),
@@ -354,8 +379,10 @@ def main():
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatters = get_formatters(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -374,10 +401,10 @@ def main():
         config.update({"output": {"verbose": False}})
 
     wandb_config = {
-        "project": wandb_section.get("project", "mlrl"),
+        "project": wandb_section.get("project"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": wandb_name,
-        "dir": wandb_section.get("dir", "./wandb"),
+        "dir": wandb_section.get("dir", output_dir),
         "tags": wandb_section.get("tags", ["magrpo", dataset_type]),
         "config_sections": {
             "dataset": config.get_section("dataset"),
@@ -405,7 +432,9 @@ def main():
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
     trainer_kwargs: Dict[str, Any] = {
-        "agent_model": model_name or None,
+        "agent_model": (
+            None if centralized and agent_names is not None else model_name or None
+        ),
         "agents": agent_names,
         "num_agents": num_agents,
         "model_config": {
@@ -419,19 +448,26 @@ def main():
         "eval_dataset": eval_dataset,
         "tokenizer": tokenizers if agent_names else tokenizer,
         "wandb_config": wandb_config,
-        "dataset_type": dataset_type,
     }
     trainer_kwargs.update(logging_wrappers)
+    if centralized:
+        from centralized_comparator import get_writing_centralized_comparator_adapter
+
+        trainer_kwargs["centralized_adapter"] = (
+            get_writing_centralized_comparator_adapter(dataset_type)
+        )
 
     if reward_processor is not None:
         trainer_kwargs["reward_processor"] = reward_processor
 
-    trainer = MAGRPOTrainer(**trainer_kwargs)
+    trainer = trainer_cls(**trainer_kwargs)
     trainer.verbose = bool(output_verbose)
     trainer.train()
 
     if config.get("output.save_final_model", True):
-        save_path = config.get("output.save_path", os.path.join(output_dir, "final_model"))
+        save_path = config.get(
+            "output.save_path", os.path.join(output_dir, "final_model")
+        )
         trainer.save_model(save_path)
         if output_verbose:
             print(f"Model saved to: {save_path}")

@@ -7,6 +7,7 @@ Uses IACTrainer with num_agents=1 and the GRPO-style formatter/reward split.
 import argparse
 import os
 import random
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -15,12 +16,18 @@ import wandb
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
-from config import Config, add_config_args, parse_overrides
+REPO_ROOT = Path(__file__).resolve().parent
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "ac_arxiv_config.yaml"
+COMLRL_ROOT = REPO_ROOT.parent / "CoMLRL"
+for path in (COMLRL_ROOT, REPO_ROOT):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
+
+from config import Config, add_config_args, parse_overrides, run_id
 from comlrl.trainers.actor_critic import IACConfig, IACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
-
 
 
 def arxiv_single_formatter(example: Dict[str, Any]) -> str:
@@ -156,24 +163,13 @@ def _set_seed(seed: int) -> None:
 
 
 def main() -> None:
-    from comlrl.runtime import configure_job_cuda_cache
-
-    configure_job_cuda_cache()
-
     parser = argparse.ArgumentParser(
         description="Train single-agent Actor-Critic for writing tasks."
     )
     add_config_args(parser)
     args = parser.parse_args()
 
-    if args.config:
-        config = Config(args.config)
-    else:
-        default_config_path = Path(__file__).parent / "configs" / "ac_arxiv_config.yaml"
-        if default_config_path.exists():
-            config = Config(str(default_config_path))
-        else:
-            raise ValueError("Please provide a configuration file using --config.")
+    config = Config(args.config or str(DEFAULT_CONFIG))
 
     if args.override:
         overrides = parse_overrides(args.override)
@@ -188,8 +184,7 @@ def main() -> None:
 
     output_base_dir = config.get("output.base_dir", "./output")
     output_verbose = bool(config.get("output.verbose", False))
-    slurm_job_id = os.environ.get("SLURM_JOB_ID", "no_job_id")
-    output_dir = os.path.join(output_base_dir, f"ac_job_{slurm_job_id}")
+    output_dir = os.path.join(output_base_dir, run_id())
     os.makedirs(output_dir, exist_ok=True)
 
     train_split = config.get("dataset.train_split")
@@ -250,8 +245,10 @@ def main() -> None:
 
     # Propagate verbosity to reward modules
     import rewards.arxiv_rewards as arxiv_rewards
+
     arxiv_rewards.VERBOSE = bool(output_verbose)
     import rewards.tldr_rewards as tldr_rewards
+
     tldr_rewards.VERBOSE = bool(output_verbose)
     formatter = get_formatter(dataset_type)
     reward_func = make_reward_function(dataset_type)
@@ -295,7 +292,9 @@ def main() -> None:
             num_agents=1,
             num_generations=ac_cfg.get("num_generations", 1),
             use_separate_critic=use_separate_critic,
-            parallel_training=str(ac_cfg.get("parallel_training", "none")).strip().lower(),
+            parallel_training=str(ac_cfg.get("parallel_training", "none"))
+            .strip()
+            .lower(),
             agent_devices=ac_cfg.get("agent_devices", None),
             critic_devices=ac_cfg.get("critic_devices", None),
             critic_value_head_hidden_dim=ac_cfg.get("critic_value_head_hidden_dim"),
@@ -314,12 +313,10 @@ def main() -> None:
         model_config={
             "model_kwargs": model_kwargs,
             "critic_model_kwargs": (
-                critic_model_kwargs
-                if critic_config is not None
-                else model_kwargs
+                critic_model_kwargs if critic_config is not None else model_kwargs
             ),
         },
-        wandb_config=_build_wandb_config(config, model_name, dataset_type),
+        wandb_config=_build_wandb_config(config, output_dir, model_name, dataset_type),
         critic_model=critic_name,
         critics=critics,
     )
@@ -345,7 +342,7 @@ def main() -> None:
 
 
 def _build_wandb_config(
-    config: Config, model_name: str, dataset_type: str
+    config: Config, output_dir: str, model_name: str, dataset_type: str
 ) -> Dict[str, Any]:
     wandb_section = config.get_section("wandb")
     ac_section = config.get_section("ac")
@@ -360,10 +357,10 @@ def _build_wandb_config(
     tags = wandb_section.get("tags", ["ac", dataset_type, "single-agent", "turns_1"])
 
     return {
-        "project": wandb_section.get("project", "comlrl"),
+        "project": wandb_section.get("project"),
         "entity": wandb_section.get("entity", "OpenMLRL"),
         "name": wandb_name,
-        "dir": wandb_section.get("dir", "./wandb"),
+        "dir": wandb_section.get("dir", output_dir),
         "tags": tags,
         "config_sections": {
             "dataset": config.get_section("dataset"),
