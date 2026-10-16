@@ -25,6 +25,7 @@ for path in (COMLRL_ROOT, REPO_ROOT):
         sys.path.insert(0, str(path))
 
 from config import Config, add_config_args, parse_overrides, run_id
+from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
 from comlrl.trainers.actor_critic import IACConfig, IACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
@@ -188,6 +189,7 @@ def main() -> None:
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
+    checkpoint_options = checkpoint_train_options(config)
 
     model_config = config.get_agent_model_config()
     critic_config = None
@@ -350,12 +352,16 @@ def main() -> None:
                 critic_model_kwargs if critic_config is not None else model_kwargs
             ),
         },
-        wandb_config=_build_wandb_config(config, output_dir, model_name, dataset_type),
+        wandb_config=prepare_wandb_config(
+            config,
+            _build_wandb_config(config, output_dir, model_name, dataset_type),
+            checkpoint_options,
+        ),
         critic_model=critic_name,
         critics=critics,
     )
     trainer.verbose = bool(output_verbose)
-    trainer.train()
+    trainer.train(**checkpoint_options)
 
     if config.get("output.save_final_model", True):
         save_path = config.get(

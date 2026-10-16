@@ -20,6 +20,7 @@ for path in (COMLRL_ROOT, REPO_ROOT):
         sys.path.insert(0, str(path))
 
 from config import Config, add_config_args, parse_overrides, run_id
+from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -171,6 +172,7 @@ def main():
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
+    checkpoint_options = checkpoint_train_options(config)
 
     model_config = config.get_agent_model_config()
     model_name = model_config.name
@@ -298,6 +300,8 @@ def main():
                 prev = reward_processor
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
+    wandb_config = prepare_wandb_config(config, wandb_config, checkpoint_options)
+
     trainer_kwargs: Dict[str, Any] = {
         "agents": [model],
         "num_agents": 1,
@@ -315,7 +319,7 @@ def main():
 
     trainer = MAGRPOTrainer(**trainer_kwargs)
     trainer.verbose = bool(output_verbose)
-    trainer.train()
+    trainer.train(**checkpoint_options)
 
     if config.get("output.save_final_model", True):
         save_path = config.get(

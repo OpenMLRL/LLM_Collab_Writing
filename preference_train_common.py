@@ -14,6 +14,7 @@ from transformers import AutoTokenizer
 
 from comlrl.utils.reward_processor import RewardProcessors
 from config import Config, run_id
+from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
 from centralized_comparator import get_writing_centralized_comparator_adapter
 from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
 from train_magrpo import (
@@ -53,6 +54,7 @@ def run_preference_training(
     trainer_cls: Type[Any],
     algorithm_name: str,
 ) -> None:
+    checkpoint_options = checkpoint_train_options(config)
     model_config = config.get_agent_model_config()
     model_name = model_config.name
     dataset_name = config.get("dataset.name")
@@ -163,6 +165,8 @@ def run_preference_training(
         },
     }
 
+    wandb_config = prepare_wandb_config(config, wandb_config, checkpoint_options)
+
     trainer_kwargs: Dict[str, Any] = {
         "agent_model": model_name if agent_names is None else None,
         "agents": agent_names,
@@ -200,7 +204,7 @@ def run_preference_training(
 
     trainer = trainer_cls(**trainer_kwargs)
     trainer.verbose = output_verbose
-    trainer.train()
+    trainer.train(**checkpoint_options)
 
     if config.get("output.save_final_model", False):
         save_path = config.get(

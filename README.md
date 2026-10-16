@@ -124,3 +124,32 @@ change.
 ### Logging
 
 Evaluation wrappers adapt the original logging utilities to the unified `MAGRPOTrainer` API, yielding aggregated metrics such as token ratios, transition coverage, and gated vs. ungated rewards. Weights & Biases configs mirror the code-generation project; set `wandb.project`, `wandb.entity`, and `wandb.name` in YAML or via overrides.
+
+### Training Checkpoints
+
+All training scripts accept an optional top-level `checkpoint` section, passed
+directly to CoMLRL's `trainer.train()`:
+
+```yaml
+checkpoint:
+  resume_from_checkpoint: null
+  checkpoint_dir: ./checkpoints
+  checkpoint_interval: 1
+  checkpoint_total_limit: 3
+```
+
+Without this section, training keeps its existing behavior. A compatible run can
+resume with the existing override syntax:
+
+```bash
+python train_magrpo.py --config configs/magrpo_tldr_config.yaml \
+  --override checkpoint.resume_from_checkpoint=./checkpoints/checkpoint-1 \
+  checkpoint.checkpoint_dir=./checkpoints checkpoint.checkpoint_total_limit=3
+```
+
+`checkpoint_dir` is optional when resuming; it is not enabled automatically.
+Training checkpoints include training state, whereas final model exports do not.
+When W&B is enabled, the launcher reads the saved run identity before constructing
+the trainer and uses `resume: allow`. Explicit `wandb.id` or `wandb.resume` settings
+take precedence and skip this lookup. `wandb: null` or `wandb.enabled: false`
+disables W&B and the identity lookup.
