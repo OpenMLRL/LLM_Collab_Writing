@@ -293,6 +293,10 @@ def main():
             "magrpo.collaboration_mode must be decentralized or centralized."
         )
     centralized = collaboration_mode == "centralized"
+    # "concatenated" embeds both role prompts; "native" states the source once.
+    centralized_prompt = magrpo_cfg.get("centralized_prompt", "concatenated")
+    if centralized_prompt not in {"concatenated", "native"}:
+        raise ValueError("magrpo.centralized_prompt must be concatenated or native.")
     args_cls = CentralizedMAGRPOConfig if centralized else MAGRPOConfig
     trainer_cls = CentralizedMAGRPOTrainer if centralized else MAGRPOTrainer
     seed_value = int(config.get("seed", magrpo_cfg.get("seed", 42)))
@@ -456,9 +460,12 @@ def main():
     trainer_kwargs.update(logging_wrappers)
     if centralized:
         from centralized_comparator import get_writing_centralized_comparator_adapter
+        from centralized_native import WritingNativeCentralizedAdapter
 
         trainer_kwargs["centralized_adapter"] = (
-            get_writing_centralized_comparator_adapter(dataset_type)
+            WritingNativeCentralizedAdapter(dataset_type)
+            if centralized_prompt == "native"
+            else get_writing_centralized_comparator_adapter(dataset_type)
         )
 
     if reward_processor is not None:
