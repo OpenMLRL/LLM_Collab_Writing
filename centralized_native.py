@@ -7,6 +7,7 @@ unchanged tagged parser splits them back into the agents' outputs for the same
 reward.
 """
 
+import re
 from typing import Any, Dict, Sequence
 
 from centralized_comparator import WritingCentralizedComparatorAdapter
@@ -33,13 +34,8 @@ Response agent_1 (detailed summary):
 - Use more unique words
 - Use some transition words to improve flow
 
-Return exactly this structure:
-<agent_0>
-the concise summary
-</agent_0>
-<agent_1>
-the detailed summary
-</agent_1>
+Output format: put the concise summary between <agent_0> and </agent_0>, then the
+detailed summary between <agent_1> and </agent_1>. Write nothing outside these tags.
 """
     abstract = example.get("abstract_text", "")
     if not abstract:
@@ -60,18 +56,20 @@ Response agent_1 (methodology and implications):
 - Focus on methodology and implications
 - Avoid repeating background and motivation content
 
-Return exactly this structure:
-<agent_0>
-the background and motivation part
-</agent_0>
-<agent_1>
-the methodology and implications part
-</agent_1>
+Output format: put the background and motivation part between <agent_0> and
+</agent_0>, then the methodology and implications part between <agent_1> and
+</agent_1>. Write nothing outside these tags.
 """
 
 
 class WritingNativeCentralizedAdapter(WritingCentralizedComparatorAdapter):
-    """State the source once; parse the same agent-tagged responses."""
+    """State the source once; parse the same agent-tagged responses.
+
+    The prompt ends with the opening agent_0 tag so the writer starts the first
+    response at once; parsing restores the tag before splitting the responses.
+    """
+
+    prefill = "<agent_0>\n"
 
     def build_prompt(
         self,
@@ -82,4 +80,15 @@ class WritingNativeCentralizedAdapter(WritingCentralizedComparatorAdapter):
             raise ValueError(
                 "Collaborative writing centralized generation requires 2 agents."
             )
-        return build_native_centralized_prompt(batch_item, self.dataset_type)
+        prompt = build_native_centralized_prompt(batch_item, self.dataset_type)
+        return prompt + self.prefill
+
+    def parse_completion(
+        self,
+        completion: str,
+        batch_item: Dict[str, Any],
+        num_agents: int,
+    ) -> Sequence[str]:
+        if self.prefill and not re.match(r"\s*<\s*agent_0\s*>", completion):
+            completion = self.prefill + completion
+        return super().parse_completion(completion, batch_item, num_agents)

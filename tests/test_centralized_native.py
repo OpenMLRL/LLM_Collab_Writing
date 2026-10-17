@@ -132,3 +132,16 @@ def test_entrypoint_selects_the_centralized_prompt(
 def test_entrypoint_rejects_unknown_prompt_mode(monkeypatch, tmp_path):
     with pytest.raises(ValueError, match="centralized_prompt"):
         _run_entrypoint(monkeypatch, tmp_path, ["magrpo.centralized_prompt=joint"])
+
+
+@pytest.mark.parametrize("dataset", ["tldr", "arxiv"])
+def test_native_prompt_prefills_agent_0_and_parsing_restores_it(dataset):
+    from centralized_native import WritingNativeCentralizedAdapter
+
+    runtime = _runtime(WritingNativeCentralizedAdapter(dataset), dataset)
+    assert runtime.build_prompt(ITEM).endswith("<agent_0>\n")
+    continued = f"{LEFT}\n</agent_0>\n<agent_1>\n{RIGHT}\n</agent_1>"
+    tagged = f"<agent_0>{LEFT}</agent_0><agent_1>{RIGHT}</agent_1>"
+    assert (
+        runtime.split(continued, ITEM) == runtime.split(tagged, ITEM) == [LEFT, RIGHT]
+    )
