@@ -1,155 +1,73 @@
 # LLM Collaboration – Writing
 
-This repo provides the extended environments for [**CoMLRL**](https://github.com/OpenMLRL/CoMLRL).
-
-This repository contains the writing-task experiments in [**[AAAI26]** **_LLM Collaboration with Multi‑Agent Reinforcement Learning_**](https://arxiv.org/abs/2508.04652).
+Writing environments for [CoMLRL](https://github.com/OpenMLRL/CoMLRL), used in the writing experiments of [**[AAAI26]** **_LLM Collaboration with Multi‑Agent Reinforcement Learning_**](https://arxiv.org/abs/2508.04652). Two agents write complementary parts of a text and are trained with a shared reward.
 
 <img src="./demo_aw.gif" alt="Writing demo" width="600px">
 
 ## Installation
 
-Install [CoMLRL](https://github.com/OpenMLRL/CoMLRL):
+CoMLRL can be installed from PyPI or conda-forge (`conda install -c conda-forge comlrl`). Users should also install a PyTorch build compatible with their device.
 
 ```bash
 pip install comlrl
-# Install PyTorch compatible with your device
+git clone https://github.com/OpenMLRL/LLM_Collab_Writing.git
+cd LLM_Collab_Writing
 ```
 
-Or via conda-forge:
+A `CoMLRL/` checkout next to this repository takes precedence over the installed package, so local CoMLRL changes are used without reinstalling.
+
+## Quick Start
+
+The following command trains two agents with MAGRPO on TLDR summarization:
 
 ```bash
-conda install -c conda-forge comlrl
-# Install PyTorch compatible with your device
+python train_magrpo.py --config configs/magrpo_tldr_config.yaml
 ```
 
-A `CoMLRL/` checkout next to this repository takes precedence over the
-installed package, so local CoMLRL changes are used without reinstalling.
-
-## Benchmarks
-
-- ArXiv Abstract Expansion: `OpenMLRL/arXiv_abstract` (train[:1000], val[:1000])
-- TLDR Summarization: `trl-lib/tldr` (train[:1000], test[:1000])
-
-## Training Scripts
-
-```bash
-python LLM_Collab_Writing/train_grpo.py \
-  --config LLM_Collab_Writing/configs/grpo_arxiv_config.yaml
-
-python LLM_Collab_Writing/train_magrpo.py \
-  --config LLM_Collab_Writing/configs/magrpo_tldr_config.yaml
-
-python LLM_Collab_Writing/train_madpo.py \
-  --config LLM_Collab_Writing/configs/madpo_tldr_config.yaml
-
-python LLM_Collab_Writing/train_marlhf_iter.py \
-  --config LLM_Collab_Writing/configs/marlhf_iter_tldr_config.yaml
-```
-
-Without `--config`, each script uses its default config in `configs/`.
-Override any configuration value inline with `--override`:
-
-```bash
-python LLM_Collab_Writing/train_magrpo.py \
-  --config LLM_Collab_Writing/configs/magrpo_arxiv_config.yaml \
-  --override agent_model.name='Qwen/Qwen3-7B' magrpo.agent_learning_rate=3e-6
-```
-
-## Settings
-
-### Single Turn
-
-Writing runs are strictly single-turn. All training entrypoints enforce
-`num_turns=1`; configs that specify other values raise an error.
-
-### Preference Training
-
-MADPO and MARLHF are available through `train_madpo.py` and `train_marlhf.py`.
-Their iterative variants use `train_madpo_iter.py` and `train_marlhf_iter.py`.
-The iterative configs support current, history-checkpoint, local-model, and API
-comparators independently from the current, nearest-k, all-history, and
-lambda-decay replay modes.
-
-### Formatters
-
-- **ArXiv**: Agent 1 writes background/motivation; Agent 2 writes methodology/implications.
-- **TLDR**: Agent 1 produces a concise summary; Agent 2 expands with additional details and vocabulary diversity.
-- **GRPO mode**: A single agent emits both paragraphs separated by `[PARAGRAPH_SPLIT]`, which the reward splits internally.
-
-### Reward Structure
-
-Rewards reuse the level-based metrics from the paper:
-
-1. Structural token limits.
-2. Relative length coordination.
-3. Vocabulary diversity (unique word ratios).
-4. Style mix (transition-word coverage + Jaccard overlap).
-
-The same functions back evaluation loggers for the baselines.
-
-### Centralized MAGRPO
-
-`python train_magrpo.py --config configs/magrpo_tldr_config.yaml --override magrpo.collaboration_mode=centralized magrpo.num_turns=1`
-trains one joint-input/joint-output actor using the task reward, without a
-comparator, preference dataset, or learned reward model. The existing writing
-adapter splits role outputs for rewards and evaluation. `max_new_tokens` is the
-total joint-response budget. The default remains decentralized; arXiv uses the
-same switch with its own configuration and adapter.
-
-### Centralized Preference Collaboration
-
-MADPO, MARLHF, and their iterative variants can train one model to generate both
-writing roles. The default stays decentralized. Enable it with:
-
-```bash
-python train_madpo_iter.py --config configs/madpo_iter_tldr_config.yaml --override madpo_iter.collaboration_mode=centralized
-python train_marlhf_iter.py --config configs/marlhf_iter_tldr_config.yaml --override marlhf_iter.collaboration_mode=centralized
-```
-
-The same switch works for Arxiv configs and for `madpo` / `marlhf` non-iterative
-scripts. Keep `num_agents=2` for the task roles; `agent_model` is loaded once.
-Explicit `agents` lists and actor device lists must each describe one model.
-The existing writing adapter combines both original prompts and requests
-`<agent_0>` / `<agent_1>` prose sections. Only task rewards and evaluation split
-the sections; policy training and learned reward scoring use the entire joint
-response. Iterative comparators automatically use the same centralized prompt
-and parser, regardless of comparator source.
-
-`max_new_tokens` is a joint, not per-role, budget; consider doubling the previous
-per-role value. For MARLHF, `reward_max_length` must accommodate the joint prompt
-and both responses. Reward/comparator device overrides remain available. Existing
-decentralized behavior, dataset defaults, and environment-step counting do not
-change.
-
-### Logging
-
-Evaluation wrappers adapt the original logging utilities to the unified `MAGRPOTrainer` API, yielding aggregated metrics such as token ratios, transition coverage, and gated vs. ungated rewards. Weights & Biases configs mirror the code-generation project; set `wandb.project`, `wandb.entity`, and `wandb.name` in YAML or via overrides.
-
-### Training Checkpoints
-
-All training scripts accept an optional top-level `checkpoint` section, passed
-directly to CoMLRL's `trainer.train()`:
-
-```yaml
-checkpoint:
-  resume_from_checkpoint: null
-  checkpoint_dir: ./checkpoints
-  checkpoint_interval: 1
-  checkpoint_total_limit: 3
-```
-
-Without this section, training keeps its existing behavior. A compatible run can
-resume with the existing override syntax:
+Any configuration value can be changed with `--override`:
 
 ```bash
 python train_magrpo.py --config configs/magrpo_tldr_config.yaml \
-  --override checkpoint.resume_from_checkpoint=./checkpoints/checkpoint-1 \
-  checkpoint.checkpoint_dir=./checkpoints checkpoint.checkpoint_total_limit=3
+  --override agent_model.name='Qwen/Qwen3-4B' magrpo.agent_learning_rate=3e-6
 ```
 
-`checkpoint_dir` is optional when resuming; it is not enabled automatically.
-Training checkpoints include training state, whereas final model exports do not.
-When W&B is enabled, the launcher reads the saved run identity before constructing
-the trainer and uses `resume: allow`. Explicit `wandb.id` or `wandb.resume` settings
-take precedence and skip this lookup. `wandb: null` or `wandb.enabled: false`
-disables W&B and the identity lookup.
+## Tasks
+
+| Task | Dataset | Agent 1 | Agent 2 |
+| --- | --- | --- | --- |
+| arXiv abstract expansion | `OpenMLRL/arXiv_abstract` (train[:1000], val[:1000]) | Background and motivation | Methodology and implications |
+| TLDR summarization | `trl-lib/tldr` (train[:1000], test[:1000]) | Concise summary | Expansion with more details and varied vocabulary |
+
+All runs are single-turn; configs that set `num_turns` to another value raise an error. The reward follows the paper's level-based metrics: structural token limits, relative length coordination, vocabulary diversity, and style mix (transition-word coverage and Jaccard overlap). The same functions back the evaluation loggers.
+
+## Training Scripts
+
+Each script has an arXiv and a TLDR config in `configs/`, such as `configs/madpo_iter_tldr_config.yaml`. Without `--config`, the arXiv config is used.
+
+| Script | Method |
+| --- | --- |
+| `train_magrpo.py` | MAGRPO |
+| `train_iac.py`, `train_maac.py` | IAC, MAAC |
+| `train_madpo.py`, `train_madpo_iter.py` | MADPO and its iterative variant |
+| `train_marlhf.py`, `train_marlhf_iter.py` | MARLHF and its iterative variant |
+| `train_grpo.py`, `train_ac.py` | Single-agent GRPO and actor-critic baselines |
+
+In the single-agent baselines, one agent writes both paragraphs, separated by `[PARAGRAPH_SPLIT]`. The iterative variants support current, history, local-model, and API comparators and several replay modes, as described in [Multi-LLM PbRL](https://openmlrl.github.io/CoMLRL/docs/marl/multi-llm-pbrl/).
+
+## Options
+
+**Centralized collaboration.** One model can write both roles with `--override <method>.collaboration_mode=centralized`, for example `magrpo.collaboration_mode=centralized`; the default is decentralized. `num_agents` stays 2 for the two roles, while only one model is loaded. The model receives both prompts and writes `<agent_0>` and `<agent_1>` sections, which are split only for rewards and evaluation. `max_new_tokens` then limits the whole joint response, and MARLHF's `reward_max_length` has to fit the joint prompt and both responses.
+
+**Checkpoints.** A top-level `checkpoint` section is passed to CoMLRL's `trainer.train()`; without it, no training checkpoints are saved.
+
+```yaml
+checkpoint:
+  checkpoint_dir: ./checkpoints
+  checkpoint_interval: 1
+  checkpoint_total_limit: 3
+  # resume_from_checkpoint: ./checkpoints/checkpoint-1
+```
+
+Resuming does not save new checkpoints unless `checkpoint_dir` is also set. A resumed run continues logging to the saved W&B run unless `wandb.id` or `wandb.resume` is set.
+
+**Logging.** W&B is configured through `wandb.project`, `wandb.entity`, and `wandb.name`; `wandb: null` or `wandb.enabled: false` disables it.
