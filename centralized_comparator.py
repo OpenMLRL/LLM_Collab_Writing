@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Sequence
 
-from comlrl.trainers.preference import (
+from comlrl.trainers.centralized import (
     CentralizedComparatorParseError,
     TaggedCentralizedComparatorAdapter,
 )

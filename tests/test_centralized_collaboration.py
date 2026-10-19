@@ -4,14 +4,14 @@ from types import SimpleNamespace
 import pytest
 
 import preference_train_common as setup
-from comlrl.trainers import preference
-from comlrl.trainers.preference.collaboration import CentralizedCollaboration
+from comlrl.trainers import pbrl
+from comlrl.trainers.centralized import CentralizedCollaboration
 
 ALGORITHMS = [
-    ("madpo", preference.MADPOConfig),
-    ("marlhf", preference.MARLHFConfig),
-    ("madpo_iter", preference.MADPOIterConfig),
-    ("marlhf_iter", preference.MARLHFIterConfig),
+    ("madpo", pbrl.MADPOConfig),
+    ("marlhf", pbrl.MARLHFConfig),
+    ("madpo_iter", pbrl.MADPOIterConfig),
+    ("marlhf_iter", pbrl.MARLHFIterConfig),
 ]
 
 
@@ -86,13 +86,11 @@ def test_magrpo_entrypoint_selects_joint_actor(mode, monkeypatch, tmp_path):
         observed["selected_mode"] = selected_mode
         return SimpleNamespace(train=lambda: None)
 
-    monkeypatch.setattr(
-        entrypoint, "MAGRPOTrainer", lambda **kw: capture("decentralized", **kw)
-    )
+    # Both modes build MAGRPOTrainer; the configuration selects the mode.
     monkeypatch.setattr(
         entrypoint,
-        "CentralizedMAGRPOTrainer",
-        lambda **kw: capture("centralized", **kw),
+        "MAGRPOTrainer",
+        lambda **kw: capture(kw["args"].collaboration_mode, **kw),
     )
     monkeypatch.setattr(
         entrypoint, "load_dataset", lambda *a, **kw: [{"prompt": "Task"}]
@@ -178,7 +176,7 @@ def test_centralized_preference_loads_one_explicit_actor(
     )
     item = {"prompt": "A task", "abstract_text": "An abstract"}
     monkeypatch.setattr(setup, "load_dataset", lambda *a, **kw: [item])
-    trainer_cls = getattr(preference, config_cls.__name__.replace("Config", "Trainer"))
+    trainer_cls = getattr(pbrl, config_cls.__name__.replace("Config", "Trainer"))
     observed = []
 
     def create_trainer(**kwargs):
@@ -208,7 +206,7 @@ def test_centralized_magrpo_explicit_actor_checkpoint(
     import sys
     import train_magrpo as entrypoint
 
-    trainer_cls = entrypoint.CentralizedMAGRPOTrainer
+    trainer_cls = entrypoint.MAGRPOTrainer
     observed = []
 
     def create_trainer(**kwargs):
@@ -217,7 +215,7 @@ def test_centralized_magrpo_explicit_actor_checkpoint(
         trainer.train = lambda: None
         return trainer
 
-    monkeypatch.setattr(entrypoint, "CentralizedMAGRPOTrainer", create_trainer)
+    monkeypatch.setattr(entrypoint, "MAGRPOTrainer", create_trainer)
     monkeypatch.setattr(
         entrypoint,
         "load_dataset",

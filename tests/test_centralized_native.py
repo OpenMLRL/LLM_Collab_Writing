@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 import preference_train_common as setup
-from comlrl.trainers.preference.collaboration import CentralizedCollaboration
+from comlrl.trainers.centralized import CentralizedCollaboration
 
 ITEM = {
     "prompt": "My landlord kept the deposit after I moved out. What can I do?",
@@ -82,7 +82,7 @@ def _run_entrypoint(monkeypatch, tmp_path, extra):
         observed.update(kwargs)
         return SimpleNamespace(train=lambda: None)
 
-    monkeypatch.setattr(entrypoint, "CentralizedMAGRPOTrainer", capture)
+    monkeypatch.setattr(entrypoint, "MAGRPOTrainer", capture)
     monkeypatch.setattr(
         entrypoint, "load_dataset", lambda *a, **kw: [{"prompt": "Task"}]
     )

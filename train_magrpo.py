@@ -38,12 +38,7 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils import set_reward_range
 from comlrl.utils.reward_processor import RewardProcessors
-from comlrl.trainers.reinforce import (
-    MAGRPOConfig,
-    MAGRPOTrainer,
-    CentralizedMAGRPOConfig,
-    CentralizedMAGRPOTrainer,
-)
+from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
 
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
@@ -297,8 +292,6 @@ def main():
     centralized_prompt = magrpo_cfg.get("centralized_prompt", "concatenated")
     if centralized_prompt not in {"concatenated", "native"}:
         raise ValueError("magrpo.centralized_prompt must be concatenated or native.")
-    args_cls = CentralizedMAGRPOConfig if centralized else MAGRPOConfig
-    trainer_cls = CentralizedMAGRPOTrainer if centralized else MAGRPOTrainer
     seed_value = int(config.get("seed", magrpo_cfg.get("seed", 42)))
     _set_seed(seed_value)
 
@@ -357,7 +350,8 @@ def main():
     top_p = model_config.top_p
     top_k = model_config.top_k
 
-    magrpo_args = args_cls(
+    magrpo_args = MAGRPOConfig(
+        collaboration_mode=collaboration_mode,
         num_turns=1,
         num_train_epochs=magrpo_cfg.get("num_train_epochs", 2),
         agent_learning_rate=magrpo_cfg.get("agent_learning_rate", 5e-6),
@@ -482,7 +476,7 @@ def main():
     if reward_processor is not None:
         trainer_kwargs["reward_processor"] = reward_processor
 
-    trainer = trainer_cls(**trainer_kwargs)
+    trainer = MAGRPOTrainer(**trainer_kwargs)
     trainer.verbose = bool(output_verbose)
     trainer.train(**checkpoint_options)
 
