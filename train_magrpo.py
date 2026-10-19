@@ -382,6 +382,17 @@ def main():
         reference_kl_enabled=magrpo_cfg.get("reference_kl_enabled", False),
         reference_kl_coef=magrpo_cfg.get("reference_kl_coef", 0.1),
         reference_devices=magrpo_cfg.get("reference_devices", None),
+        skip_zero_grad_steps=bool(magrpo_cfg.get("skip_zero_grad_steps", False)),
+        # Centralized runs can score the joint response with the decentralized loss.
+        **(
+            {
+                "match_decentralized_loss": bool(
+                    magrpo_cfg.get("match_decentralized_loss", False)
+                )
+            }
+            if centralized
+            else {}
+        ),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
