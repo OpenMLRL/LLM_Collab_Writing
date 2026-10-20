@@ -132,6 +132,54 @@ def test_preference_setup_rejects_an_unknown_centralized_prompt(monkeypatch, tmp
         )
 
 
+@pytest.mark.parametrize("prompt_mode", [None, "concatenated", "native"])
+@pytest.mark.parametrize("mode", ["centralized", "decentralized"])
+def test_maac_entrypoint_selects_the_joint_actor_prompt(
+    mode, prompt_mode, monkeypatch, tmp_path
+):
+    import sys
+    import train_maac as entrypoint
+    from centralized_comparator import WritingCentralizedComparatorAdapter
+    from centralized_native import WritingNativeCentralizedAdapter
+
+    observed = {}
+
+    def capture(**kwargs):
+        observed.update(kwargs)
+        return SimpleNamespace(train=lambda **options: None)
+
+    monkeypatch.setattr(entrypoint, "MAACTrainer", capture)
+    monkeypatch.setattr(
+        entrypoint, "load_dataset", lambda *a, **kw: [{"prompt": "Task"}]
+    )
+    monkeypatch.setattr(
+        entrypoint.AutoTokenizer,
+        "from_pretrained",
+        lambda *a, **kw: SimpleNamespace(pad_token="pad", eos_token="eos"),
+    )
+    config = Path(__file__).resolve().parents[1] / "configs/maac_tldr_config.yaml"
+    overrides = [
+        f"maac.collaboration_mode={mode}",
+        f"output.base_dir={tmp_path}",
+        "output.save_final_model=false",
+        "wandb.enabled=false",
+    ]
+    if prompt_mode is not None:
+        overrides.append(f"maac.centralized_prompt={prompt_mode}")
+    monkeypatch.setattr(
+        sys, "argv", ["train", "--config", str(config), "--override", *overrides]
+    )
+    entrypoint.main()
+    assert observed["args"].collaboration_mode == mode
+    adapter = observed.get("centralized_adapter")
+    if mode == "decentralized":
+        assert adapter is None
+    elif prompt_mode == "native":
+        assert type(adapter) is WritingNativeCentralizedAdapter
+    else:
+        assert type(adapter) is WritingCentralizedComparatorAdapter
+
+
 @pytest.mark.parametrize("mode", ["centralized", "decentralized"])
 def test_magrpo_entrypoint_selects_joint_actor(mode, monkeypatch, tmp_path):
     import sys
