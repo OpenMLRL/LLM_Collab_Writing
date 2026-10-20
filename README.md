@@ -66,7 +66,7 @@ python train_magrpo.py --config configs/magrpo_tldr_config.yaml --override \
   magrpo.centralized_prompt=native
 ```
 
-**Centralized comparator.** The iterative preference methods can pair decentralized agents with one centralized comparator, which writes both responses in a single answer. `madpo_iter.centralized_prompt` (or `marlhf_iter.centralized_prompt`) picks that comparator's prompt, `concatenated` by default or `native`. In centralized preference runs, the joint actor uses the same prompt. The comparator's joint answer shares `max_new_tokens` with the agents, which is 256 in the iterative configs:
+**Centralized comparator.** The iterative preference methods can pair decentralized agents with one centralized comparator, which writes both responses in a single answer. `madpo_iter.centralized_prompt` (or `marlhf_iter.centralized_prompt`) picks that comparator's prompt, `concatenated` by default or `native`. In centralized preference runs, the joint actor uses the same prompt. The comparator's joint answer shares `max_new_tokens` with the agents, 256 in the iterative configs, unless `madpo_iter.comparator_centralized_max_new_tokens` gives it its own budget:
 
 ```bash
 python train_madpo_iter.py --config configs/madpo_iter_tldr_config.yaml --override \
