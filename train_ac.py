@@ -24,7 +24,7 @@ for path in (COMLRL_ROOT, REPO_ROOT):
         sys.path.insert(0, str(path))
 
 from config import Config, add_config_args, parse_overrides, run_id
-from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
+from checkpoint_launch import parse_checkpoint_options, prepare_wandb_config
 from comlrl.trainers.actor_critic import IACConfig, IACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from rewards.arxiv_rewards import arxiv_combined_reward
@@ -175,7 +175,7 @@ def main() -> None:
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
-    checkpoint_options = checkpoint_train_options(config)
+    checkpoint_options = parse_checkpoint_options(config)
 
     model_config = config.get_agent_model_config()
     critic_config = None

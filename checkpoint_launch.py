@@ -12,7 +12,7 @@ _CHECKPOINT_KEYS = {
 }
 
 
-def checkpoint_train_options(config):
+def parse_checkpoint_options(config):
     """Validate explicit YAML options without reading or creating checkpoints."""
     section = config.get("checkpoint")
     if section is None:
