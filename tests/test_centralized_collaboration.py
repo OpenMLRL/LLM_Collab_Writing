@@ -3,6 +3,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from centralized_comparator import WritingCentralizedComparatorAdapter
+from centralized_native import WritingNativeCentralizedAdapter
 import preference_train_common as setup
 from comlrl.trainers import pbrl
 from comlrl.trainers.centralized import CentralizedCollaboration
@@ -15,18 +17,16 @@ ALGORITHMS = [
 ]
 
 
-@pytest.mark.parametrize("section,config_cls", ALGORITHMS)
-@pytest.mark.parametrize("dataset", ["tldr", "arxiv"])
-@pytest.mark.parametrize("mode", ["decentralized", "centralized"])
-def test_preference_setup_passes_collaboration_adapter(
-    section, config_cls, dataset, mode, monkeypatch, tmp_path
+def _run_preference_setup(
+    section, config_cls, dataset, settings, monkeypatch, tmp_path
 ):
+    """Run the pbrl setup on one stub row; return the trainer's kwargs and the row."""
     root = Path(__file__).resolve().parents[1]
     config = setup.Config(str(root / "configs" / f"{section}_{dataset}_config.yaml"))
     assert config.get(f"{section}.collaboration_mode") == "decentralized"
     config.update(
         {
-            section: {"collaboration_mode": mode, "agent_devices": "cpu"},
+            section: {"agent_devices": "cpu", **settings},
             "output": {"base_dir": str(tmp_path), "save_final_model": False},
         }
     )
@@ -53,6 +53,23 @@ def test_preference_setup_passes_collaboration_adapter(
         trainer_cls=create_trainer,
         algorithm_name=section,
     )
+    return observed, item
+
+
+@pytest.mark.parametrize("section,config_cls", ALGORITHMS)
+@pytest.mark.parametrize("dataset", ["tldr", "arxiv"])
+@pytest.mark.parametrize("mode", ["decentralized", "centralized"])
+def test_preference_setup_passes_collaboration_adapter(
+    section, config_cls, dataset, mode, monkeypatch, tmp_path
+):
+    observed, item = _run_preference_setup(
+        section,
+        config_cls,
+        dataset,
+        {"collaboration_mode": mode},
+        monkeypatch,
+        tmp_path,
+    )
     assert observed["num_agents"] == 2
     assert observed["args"].collaboration_mode == mode
     if mode == "centralized":
@@ -72,6 +89,47 @@ def test_preference_setup_passes_collaboration_adapter(
             assert observed["args"].comparator_generation_mode == "centralized"
     elif not section.endswith("_iter"):
         assert "centralized_comparator_adapter" not in observed
+
+
+ITERATIVE = [algorithm for algorithm in ALGORITHMS if algorithm[0].endswith("_iter")]
+
+
+@pytest.mark.parametrize("section,config_cls", ITERATIVE)
+@pytest.mark.parametrize("prompt_mode", [None, "native"])
+def test_centralized_comparator_follows_the_centralized_prompt(
+    section, config_cls, prompt_mode, monkeypatch, tmp_path
+):
+    # Dec-Cen: decentralized agents are compared with one centralized comparator.
+    settings = {"comparator_generation_mode": "centralized"}
+    if prompt_mode is not None:
+        settings["centralized_prompt"] = prompt_mode
+    observed, item = _run_preference_setup(
+        section, config_cls, "tldr", settings, monkeypatch, tmp_path
+    )
+    assert observed["args"].collaboration_mode == "decentralized"
+    assert observed["args"].comparator_generation_mode == "centralized"
+    adapter = observed["centralized_comparator_adapter"]
+    roles = [format_role(item) for format_role in observed["formatters"]]
+    prompt = adapter.build_prompt(item, roles)
+    if prompt_mode == "native":
+        assert type(adapter) is WritingNativeCentralizedAdapter
+        assert prompt.count(item["prompt"]) == 1
+        assert not any(role in prompt for role in roles)
+    else:
+        assert type(adapter) is WritingCentralizedComparatorAdapter
+        assert all(role in prompt for role in roles)
+
+
+def test_preference_setup_rejects_an_unknown_centralized_prompt(monkeypatch, tmp_path):
+    with pytest.raises(ValueError, match="madpo_iter.centralized_prompt"):
+        _run_preference_setup(
+            "madpo_iter",
+            pbrl.MADPOIterConfig,
+            "tldr",
+            {"centralized_prompt": "joint"},
+            monkeypatch,
+            tmp_path,
+        )
 
 
 @pytest.mark.parametrize("mode", ["centralized", "decentralized"])

@@ -58,12 +58,19 @@ In the single-agent baselines, one agent writes both paragraphs, separated by `[
 
 **Centralized collaboration.** One model can write both roles with `--override <method>.collaboration_mode=centralized`, for example `magrpo.collaboration_mode=centralized`; the default is decentralized. `num_agents` stays 2 for the two roles, while only one model is loaded. The model receives both prompts and writes `<agent_0>` and `<agent_1>` sections, which are split only for rewards and evaluation. `max_new_tokens` then limits the whole joint response, and MARLHF's `reward_max_length` has to fit the joint prompt and both responses.
 
-**Native centralized prompt (MAGRPO).** By default the centralized prompt concatenates both agents' prompts, so the post or abstract appears twice. `magrpo.centralized_prompt=native` states the source once and asks one writer for both `<agent_0>` / `<agent_1>` responses, with both roles' instructions merged. The parser, reward and evaluation are unchanged. The joint response gets the two roles' combined budget:
+**Native centralized prompt.** By default the centralized prompt concatenates both agents' prompts, so the post or abstract appears twice. `magrpo.centralized_prompt=native` states the source once and asks one writer for both `<agent_0>` / `<agent_1>` responses, with both roles' instructions merged. The parser, reward and evaluation are unchanged. The joint response gets the two roles' combined budget:
 
 ```bash
 python train_magrpo.py --config configs/magrpo_tldr_config.yaml --override \
   magrpo.collaboration_mode=centralized magrpo.max_new_tokens=512 \
   magrpo.centralized_prompt=native
+```
+
+**Centralized comparator.** The iterative preference methods can pair decentralized agents with one centralized comparator, which writes both responses in a single answer. `madpo_iter.centralized_prompt` (or `marlhf_iter.centralized_prompt`) picks that comparator's prompt, `concatenated` by default or `native`. In centralized preference runs, the joint actor uses the same prompt. The comparator's joint answer shares `max_new_tokens` with the agents, which is 256 in the iterative configs:
+
+```bash
+python train_madpo_iter.py --config configs/madpo_iter_tldr_config.yaml --override \
+  madpo_iter.comparator_generation_mode=centralized madpo_iter.centralized_prompt=native
 ```
 
 **Checkpoints.** A top-level `checkpoint` section is passed to CoMLRL's `trainer.train()`; without it, no training checkpoints are saved.
