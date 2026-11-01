@@ -25,7 +25,7 @@ for path in (COMLRL_ROOT, REPO_ROOT):
         sys.path.insert(0, str(path))
 
 from config import Config, add_config_args, parse_overrides, run_id
-from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
+from checkpoint_launch import parse_checkpoint_options, prepare_wandb_config
 from comlrl.trainers.actor_critic import MAACConfig, MAACTrainer
 from comlrl.utils.reward_processor import RewardProcessors
 from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
@@ -189,7 +189,7 @@ def main() -> None:
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
-    checkpoint_options = checkpoint_train_options(config)
+    checkpoint_options = parse_checkpoint_options(config)
 
     model_config = config.get_agent_model_config()
     critic_config = None
@@ -207,6 +207,16 @@ def main() -> None:
     eval_split = config.get("dataset.eval_split")
 
     maac_cfg = config.get_section("maac")
+    collaboration_mode = maac_cfg.get("collaboration_mode", "decentralized")
+    if collaboration_mode not in {"decentralized", "centralized"}:
+        raise ValueError(
+            "maac.collaboration_mode must be decentralized or centralized."
+        )
+    centralized = collaboration_mode == "centralized"
+    # "concatenated" embeds both role prompts; "native" states the source once.
+    centralized_prompt = maac_cfg.get("centralized_prompt", "concatenated")
+    if centralized_prompt not in {"concatenated", "native"}:
+        raise ValueError("maac.centralized_prompt must be concatenated or native.")
     seed_value = int(config.get("seed", maac_cfg.get("seed", 42)))
     _set_seed(seed_value)
 
@@ -233,6 +243,8 @@ def main() -> None:
         agent_names = [str(x) for x in agents_field]
     elif agents_field is not None and not isinstance(agents_field, dict):
         raise ValueError("agents must be a list of model names.")
+    if centralized and agent_names is not None and len(agent_names) != 1:
+        raise ValueError("Centralized collaboration requires exactly one actor model.")
     tokenizer_source = agent_names[0] if agent_names else model_name
     if not tokenizer_source:
         raise ValueError("agent_model.name or agents must be provided.")
@@ -297,8 +309,18 @@ def main() -> None:
                 prev = reward_processor
                 reward_processor = (lambda p=prev, s=shift_proc: (lambda x: s(p(x))))()
 
-    model_arg = model_name or None
+    model_arg = None if centralized and agent_names is not None else model_name or None
     agents_arg = agent_names
+    collaboration_kwargs: Dict[str, Any] = {}
+    if centralized:
+        from centralized_comparator import get_writing_centralized_comparator_adapter
+        from centralized_native import WritingNativeCentralizedAdapter
+
+        collaboration_kwargs["centralized_adapter"] = (
+            WritingNativeCentralizedAdapter(dataset_type)
+            if centralized_prompt == "native"
+            else get_writing_centralized_comparator_adapter(dataset_type)
+        )
     trainer = MAACTrainer(
         agent_model=model_arg,
         agents=agents_arg,
@@ -309,6 +331,7 @@ def main() -> None:
         metrics_callback=metrics_callback,
         external_transition=None,
         args=MAACConfig(
+            collaboration_mode=collaboration_mode,
             num_turns=1,
             num_train_epochs=maac_cfg.get("num_train_epochs", 20),
             agent_learning_rate=maac_cfg.get("agent_learning_rate", 5e-6),
@@ -349,6 +372,7 @@ def main() -> None:
         ),
         critic_model=critic_name,
         critics=critics,
+        **collaboration_kwargs,
     )
     trainer.verbose = bool(output_verbose)
     trainer.train(**checkpoint_options)

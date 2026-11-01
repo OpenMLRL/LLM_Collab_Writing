@@ -20,7 +20,7 @@ for path in (COMLRL_ROOT, REPO_ROOT):
         sys.path.insert(0, str(path))
 
 from config import Config, add_config_args, parse_overrides, run_id
-from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
+from checkpoint_launch import parse_checkpoint_options, prepare_wandb_config
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -172,7 +172,7 @@ def main():
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
-    checkpoint_options = checkpoint_train_options(config)
+    checkpoint_options = parse_checkpoint_options(config)
 
     model_config = config.get_agent_model_config()
     model_name = model_config.name

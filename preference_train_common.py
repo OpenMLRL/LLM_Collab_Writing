@@ -14,8 +14,9 @@ from transformers import AutoTokenizer
 
 from comlrl.utils.reward_processor import RewardProcessors
 from config import Config, run_id
-from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
+from checkpoint_launch import parse_checkpoint_options, prepare_wandb_config
 from centralized_comparator import get_writing_centralized_comparator_adapter
+from centralized_native import WritingNativeCentralizedAdapter
 from loggers.ac_writing_metrics import build_ac_writing_metrics_callback
 from train_magrpo import (
     get_eval_logging,
@@ -54,7 +55,7 @@ def run_preference_training(
     trainer_cls: Type[Any],
     algorithm_name: str,
 ) -> None:
-    checkpoint_options = checkpoint_train_options(config)
+    checkpoint_options = parse_checkpoint_options(config)
     model_config = config.get_agent_model_config()
     model_name = model_config.name
     dataset_name = config.get("dataset.name")
@@ -117,6 +118,12 @@ def run_preference_training(
             tokenizer.add_special_tokens(model_config.special_tokens)
 
     args_kwargs = dict(trainer_config)
+    # "concatenated" embeds both role prompts; "native" states the source once.
+    centralized_prompt = args_kwargs.pop("centralized_prompt", "concatenated")
+    if centralized_prompt not in {"concatenated", "native"}:
+        raise ValueError(
+            f"{section_name}.centralized_prompt must be concatenated or native."
+        )
     args_kwargs.setdefault("temperature", model_config.temperature)
     args_kwargs.setdefault("top_p", model_config.top_p)
     args_kwargs.setdefault("top_k", model_config.top_k)
@@ -189,7 +196,9 @@ def run_preference_training(
         or trainer_args.collaboration_mode == "centralized"
     ):
         trainer_kwargs["centralized_comparator_adapter"] = (
-            get_writing_centralized_comparator_adapter(dataset_type)
+            WritingNativeCentralizedAdapter(dataset_type)
+            if centralized_prompt == "native"
+            else get_writing_centralized_comparator_adapter(dataset_type)
         )
 
     if algorithm_name.lower() in {"marlhf", "marlhf_iter"}:

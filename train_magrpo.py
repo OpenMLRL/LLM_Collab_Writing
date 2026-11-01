@@ -22,7 +22,7 @@ for path in (COMLRL_ROOT, REPO_ROOT):
         sys.path.insert(0, str(path))
 
 from config import Config, add_config_args, parse_overrides, run_id
-from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
+from checkpoint_launch import parse_checkpoint_options, prepare_wandb_config
 from datasets import load_dataset
 from transformers import AutoTokenizer
 
@@ -38,12 +38,7 @@ from rewards.arxiv_rewards import arxiv_combined_reward
 from rewards.tldr_rewards import tldr_combined_reward
 from comlrl.utils import set_reward_range
 from comlrl.utils.reward_processor import RewardProcessors
-from comlrl.trainers.reinforce import (
-    MAGRPOConfig,
-    MAGRPOTrainer,
-    CentralizedMAGRPOConfig,
-    CentralizedMAGRPOTrainer,
-)
+from comlrl.trainers.reinforce import MAGRPOConfig, MAGRPOTrainer
 
 
 def background_agent_formatter(example: Dict[str, Any]) -> str:
@@ -271,7 +266,7 @@ def main():
     if args.override:
         overrides = parse_overrides(args.override)
         config.update(overrides)
-    checkpoint_options = checkpoint_train_options(config)
+    checkpoint_options = parse_checkpoint_options(config)
     model_config = config.get_agent_model_config()
     model_name = model_config.name
 
@@ -293,8 +288,10 @@ def main():
             "magrpo.collaboration_mode must be decentralized or centralized."
         )
     centralized = collaboration_mode == "centralized"
-    args_cls = CentralizedMAGRPOConfig if centralized else MAGRPOConfig
-    trainer_cls = CentralizedMAGRPOTrainer if centralized else MAGRPOTrainer
+    # "concatenated" embeds both role prompts; "native" states the source once.
+    centralized_prompt = magrpo_cfg.get("centralized_prompt", "concatenated")
+    if centralized_prompt not in {"concatenated", "native"}:
+        raise ValueError("magrpo.centralized_prompt must be concatenated or native.")
     seed_value = int(config.get("seed", magrpo_cfg.get("seed", 42)))
     _set_seed(seed_value)
 
@@ -353,7 +350,8 @@ def main():
     top_p = model_config.top_p
     top_k = model_config.top_k
 
-    magrpo_args = args_cls(
+    magrpo_args = MAGRPOConfig(
+        collaboration_mode=collaboration_mode,
         num_turns=1,
         num_train_epochs=magrpo_cfg.get("num_train_epochs", 2),
         agent_learning_rate=magrpo_cfg.get("agent_learning_rate", 5e-6),
@@ -378,6 +376,17 @@ def main():
         reference_kl_enabled=magrpo_cfg.get("reference_kl_enabled", False),
         reference_kl_coef=magrpo_cfg.get("reference_kl_coef", 0.1),
         reference_devices=magrpo_cfg.get("reference_devices", None),
+        skip_zero_grad_steps=bool(magrpo_cfg.get("skip_zero_grad_steps", False)),
+        # Centralized runs can score the joint response with the decentralized loss.
+        **(
+            {
+                "match_decentralized_loss": bool(
+                    magrpo_cfg.get("match_decentralized_loss", False)
+                )
+            }
+            if centralized
+            else {}
+        ),
     )
 
     import rewards.arxiv_rewards as arxiv_rewards
@@ -456,15 +465,18 @@ def main():
     trainer_kwargs.update(logging_wrappers)
     if centralized:
         from centralized_comparator import get_writing_centralized_comparator_adapter
+        from centralized_native import WritingNativeCentralizedAdapter
 
         trainer_kwargs["centralized_adapter"] = (
-            get_writing_centralized_comparator_adapter(dataset_type)
+            WritingNativeCentralizedAdapter(dataset_type)
+            if centralized_prompt == "native"
+            else get_writing_centralized_comparator_adapter(dataset_type)
         )
 
     if reward_processor is not None:
         trainer_kwargs["reward_processor"] = reward_processor
 
-    trainer = trainer_cls(**trainer_kwargs)
+    trainer = MAGRPOTrainer(**trainer_kwargs)
     trainer.verbose = bool(output_verbose)
     trainer.train(**checkpoint_options)
 

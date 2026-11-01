@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from checkpoint_launch import checkpoint_train_options, prepare_wandb_config
+from checkpoint_launch import parse_checkpoint_options, prepare_wandb_config
 from config import Config
 
 
@@ -37,7 +37,7 @@ def test_unconfigured_launch_needs_no_checkpoint_api_or_io(monkeypatch, tmp_path
     monkeypatch.delattr(comlrl.utils, "read_checkpoint_metadata")
     config = config_from({"wandb": {"project": "original"}})
     base = {"project": "original", "name": "fresh"}
-    assert checkpoint_train_options(config) == {}
+    assert parse_checkpoint_options(config) == {}
     assert prepare_wandb_config(config, base, {}) == base
     assert list(tmp_path.iterdir()) == []
 
@@ -64,7 +64,7 @@ def test_invalid_checkpoint_options_are_rejected_without_mutation(section):
     config = config_from({"checkpoint": section})
     before = copy.deepcopy(config.data)
     with pytest.raises(ValueError, match="checkpoint"):
-        checkpoint_train_options(config)
+        parse_checkpoint_options(config)
     assert config.data == before
 
 

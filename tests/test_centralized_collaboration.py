@@ -3,30 +3,30 @@ from types import SimpleNamespace
 
 import pytest
 
+from centralized_comparator import WritingCentralizedComparatorAdapter
+from centralized_native import WritingNativeCentralizedAdapter
 import preference_train_common as setup
-from comlrl.trainers import preference
-from comlrl.trainers.preference.collaboration import CentralizedCollaboration
+from comlrl.trainers import pbrl
+from comlrl.trainers.centralized import CentralizedCollaboration
 
 ALGORITHMS = [
-    ("madpo", preference.MADPOConfig),
-    ("marlhf", preference.MARLHFConfig),
-    ("madpo_iter", preference.MADPOIterConfig),
-    ("marlhf_iter", preference.MARLHFIterConfig),
+    ("madpo", pbrl.MADPOConfig),
+    ("marlhf", pbrl.MARLHFConfig),
+    ("madpo_iter", pbrl.MADPOIterConfig),
+    ("marlhf_iter", pbrl.MARLHFIterConfig),
 ]
 
 
-@pytest.mark.parametrize("section,config_cls", ALGORITHMS)
-@pytest.mark.parametrize("dataset", ["tldr", "arxiv"])
-@pytest.mark.parametrize("mode", ["decentralized", "centralized"])
-def test_preference_setup_passes_collaboration_adapter(
-    section, config_cls, dataset, mode, monkeypatch, tmp_path
+def _run_preference_setup(
+    section, config_cls, dataset, settings, monkeypatch, tmp_path
 ):
+    """Run the pbrl setup on one stub row; return the trainer's kwargs and the row."""
     root = Path(__file__).resolve().parents[1]
     config = setup.Config(str(root / "configs" / f"{section}_{dataset}_config.yaml"))
     assert config.get(f"{section}.collaboration_mode") == "decentralized"
     config.update(
         {
-            section: {"collaboration_mode": mode, "agent_devices": "cpu"},
+            section: {"agent_devices": "cpu", **settings},
             "output": {"base_dir": str(tmp_path), "save_final_model": False},
         }
     )
@@ -53,6 +53,23 @@ def test_preference_setup_passes_collaboration_adapter(
         trainer_cls=create_trainer,
         algorithm_name=section,
     )
+    return observed, item
+
+
+@pytest.mark.parametrize("section,config_cls", ALGORITHMS)
+@pytest.mark.parametrize("dataset", ["tldr", "arxiv"])
+@pytest.mark.parametrize("mode", ["decentralized", "centralized"])
+def test_preference_setup_passes_collaboration_adapter(
+    section, config_cls, dataset, mode, monkeypatch, tmp_path
+):
+    observed, item = _run_preference_setup(
+        section,
+        config_cls,
+        dataset,
+        {"collaboration_mode": mode},
+        monkeypatch,
+        tmp_path,
+    )
     assert observed["num_agents"] == 2
     assert observed["args"].collaboration_mode == mode
     if mode == "centralized":
@@ -74,6 +91,95 @@ def test_preference_setup_passes_collaboration_adapter(
         assert "centralized_comparator_adapter" not in observed
 
 
+ITERATIVE = [algorithm for algorithm in ALGORITHMS if algorithm[0].endswith("_iter")]
+
+
+@pytest.mark.parametrize("section,config_cls", ITERATIVE)
+@pytest.mark.parametrize("prompt_mode", [None, "native"])
+def test_centralized_comparator_follows_the_centralized_prompt(
+    section, config_cls, prompt_mode, monkeypatch, tmp_path
+):
+    # Dec-Cen: decentralized agents are compared with one centralized comparator.
+    settings = {"comparator_generation_mode": "centralized"}
+    if prompt_mode is not None:
+        settings["centralized_prompt"] = prompt_mode
+    observed, item = _run_preference_setup(
+        section, config_cls, "tldr", settings, monkeypatch, tmp_path
+    )
+    assert observed["args"].collaboration_mode == "decentralized"
+    assert observed["args"].comparator_generation_mode == "centralized"
+    adapter = observed["centralized_comparator_adapter"]
+    roles = [format_role(item) for format_role in observed["formatters"]]
+    prompt = adapter.build_prompt(item, roles)
+    if prompt_mode == "native":
+        assert type(adapter) is WritingNativeCentralizedAdapter
+        assert prompt.count(item["prompt"]) == 1
+        assert not any(role in prompt for role in roles)
+    else:
+        assert type(adapter) is WritingCentralizedComparatorAdapter
+        assert all(role in prompt for role in roles)
+
+
+def test_preference_setup_rejects_an_unknown_centralized_prompt(monkeypatch, tmp_path):
+    with pytest.raises(ValueError, match="madpo_iter.centralized_prompt"):
+        _run_preference_setup(
+            "madpo_iter",
+            pbrl.MADPOIterConfig,
+            "tldr",
+            {"centralized_prompt": "joint"},
+            monkeypatch,
+            tmp_path,
+        )
+
+
+@pytest.mark.parametrize("prompt_mode", [None, "concatenated", "native"])
+@pytest.mark.parametrize("mode", ["centralized", "decentralized"])
+def test_maac_entrypoint_selects_the_joint_actor_prompt(
+    mode, prompt_mode, monkeypatch, tmp_path
+):
+    import sys
+    import train_maac as entrypoint
+    from centralized_comparator import WritingCentralizedComparatorAdapter
+    from centralized_native import WritingNativeCentralizedAdapter
+
+    observed = {}
+
+    def capture(**kwargs):
+        observed.update(kwargs)
+        return SimpleNamespace(train=lambda **options: None)
+
+    monkeypatch.setattr(entrypoint, "MAACTrainer", capture)
+    monkeypatch.setattr(
+        entrypoint, "load_dataset", lambda *a, **kw: [{"prompt": "Task"}]
+    )
+    monkeypatch.setattr(
+        entrypoint.AutoTokenizer,
+        "from_pretrained",
+        lambda *a, **kw: SimpleNamespace(pad_token="pad", eos_token="eos"),
+    )
+    config = Path(__file__).resolve().parents[1] / "configs/maac_tldr_config.yaml"
+    overrides = [
+        f"maac.collaboration_mode={mode}",
+        f"output.base_dir={tmp_path}",
+        "output.save_final_model=false",
+        "wandb.enabled=false",
+    ]
+    if prompt_mode is not None:
+        overrides.append(f"maac.centralized_prompt={prompt_mode}")
+    monkeypatch.setattr(
+        sys, "argv", ["train", "--config", str(config), "--override", *overrides]
+    )
+    entrypoint.main()
+    assert observed["args"].collaboration_mode == mode
+    adapter = observed.get("centralized_adapter")
+    if mode == "decentralized":
+        assert adapter is None
+    elif prompt_mode == "native":
+        assert type(adapter) is WritingNativeCentralizedAdapter
+    else:
+        assert type(adapter) is WritingCentralizedComparatorAdapter
+
+
 @pytest.mark.parametrize("mode", ["centralized", "decentralized"])
 def test_magrpo_entrypoint_selects_joint_actor(mode, monkeypatch, tmp_path):
     import sys
@@ -86,13 +192,11 @@ def test_magrpo_entrypoint_selects_joint_actor(mode, monkeypatch, tmp_path):
         observed["selected_mode"] = selected_mode
         return SimpleNamespace(train=lambda: None)
 
-    monkeypatch.setattr(
-        entrypoint, "MAGRPOTrainer", lambda **kw: capture("decentralized", **kw)
-    )
+    # Both modes build MAGRPOTrainer; the configuration selects the mode.
     monkeypatch.setattr(
         entrypoint,
-        "CentralizedMAGRPOTrainer",
-        lambda **kw: capture("centralized", **kw),
+        "MAGRPOTrainer",
+        lambda **kw: capture(kw["args"].collaboration_mode, **kw),
     )
     monkeypatch.setattr(
         entrypoint, "load_dataset", lambda *a, **kw: [{"prompt": "Task"}]
@@ -178,7 +282,7 @@ def test_centralized_preference_loads_one_explicit_actor(
     )
     item = {"prompt": "A task", "abstract_text": "An abstract"}
     monkeypatch.setattr(setup, "load_dataset", lambda *a, **kw: [item])
-    trainer_cls = getattr(preference, config_cls.__name__.replace("Config", "Trainer"))
+    trainer_cls = getattr(pbrl, config_cls.__name__.replace("Config", "Trainer"))
     observed = []
 
     def create_trainer(**kwargs):
@@ -208,7 +312,7 @@ def test_centralized_magrpo_explicit_actor_checkpoint(
     import sys
     import train_magrpo as entrypoint
 
-    trainer_cls = entrypoint.CentralizedMAGRPOTrainer
+    trainer_cls = entrypoint.MAGRPOTrainer
     observed = []
 
     def create_trainer(**kwargs):
@@ -217,7 +321,7 @@ def test_centralized_magrpo_explicit_actor_checkpoint(
         trainer.train = lambda: None
         return trainer
 
-    monkeypatch.setattr(entrypoint, "CentralizedMAGRPOTrainer", create_trainer)
+    monkeypatch.setattr(entrypoint, "MAGRPOTrainer", create_trainer)
     monkeypatch.setattr(
         entrypoint,
         "load_dataset",
